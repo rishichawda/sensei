@@ -1,0 +1,8 @@
+{
+  "name": "sensei",
+  "description": "Personal AI learning system: a teaching skill built on two pedagogy principles, a diagram-visualization skill, and the agents/scripts they depend on.",
+  "version": "0.1.0",
+  "author": { "name": "rishichawda", "email": "rishichawda@users.noreply.github.com" },
+  "license": "MIT",
+  "keywords": ["teaching", "learning", "pedagogy", "diagrams"]
+}

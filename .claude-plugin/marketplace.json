@@ -1,0 +1,14 @@
+{
+  "name": "sensei-dev",
+  "description": "Local development marketplace for the sensei plugin",
+  "owner": { "name": "rishichawda", "email": "rishichawda@users.noreply.github.com" },
+  "plugins": [
+    {
+      "name": "sensei",
+      "description": "Personal AI learning system",
+      "version": "0.1.0",
+      "source": "./",
+      "author": { "name": "rishichawda", "email": "rishichawda@users.noreply.github.com" }
+    }
+  ]
+}
