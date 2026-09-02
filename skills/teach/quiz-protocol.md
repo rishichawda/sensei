@@ -1,0 +1,35 @@
+# Quiz protocol (native AskUserQuestion, no custom tool)
+
+There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extension point for outside code to add grading logic, and the harness strips it from every subagent's tool set entirely — even if declared in frontmatter `tools:` — because a subagent must complete autonomously without blocking on user interaction. So grading is YOUR job, done in plain conversation, in the main session. Follow this protocol exactly every time you run a graded question.
+
+## Running a quiz question
+
+1. **Decide the correct answer and write the explanation BEFORE calling the tool.** Hold both in your own working context — never put the correct answer in an option's label or description text (that would leak it visually before the user answers).
+2. **Build the options with this construction procedure** — a post-hoc "keep them even" audit isn't enough on its own, since you write a good answer plus some throwaway wrongs and then don't re-scrutinise them; the tell is baked in before any check runs. Build them so evenness is automatic instead:
+   - **(a) Every option is a bare claim — no justification anywhere.** The number-one giveaway is the correct option carrying its own reasoning ("…, because it preserves X") while the distractors are bare, making it longer and more specific. Put *zero* "why" in any option; all reasoning goes into your verdict message after they answer (step 6 below).
+   - **(b) Write the correct claim first, then mutate it into each distractor.** Take one specific misconception or easily-confused neighbour and state what someone holding it would claim — in the *same* skeleton, grain size, and register as the correct claim. Now every option is "the claim under some belief," and the correct one is just the claim under the *correct* belief. Parallelism falls out by construction instead of being policed.
+   - **(c)** Each distractor must still be a real error someone might actually make (so which one they pick is diagnostic), yet unambiguously wrong on the intended reading — tempting, not tricky.
+   - **(d) No asymmetric bolding.** Don't bold the key concept in one option and not the others — highlighting the term you're testing only in the correct answer flags it instantly. Either bold nothing, or bold the parallel term in every option.
+
+   If, reading the finished set cold, you can still tell which is right without knowing the material, you skipped (a) or (b) — regenerate, don't patch.
+
+   `AskUserQuestion` accepts at most 4 options per question, and "I don't know" (step 3 below) always occupies one of them — so build **at most 3 real graded options** (fewer if you want more headroom).
+3. **Always add one more option yourself**, worded exactly `"I don't know"`, appended after your real options. There is no automatic "I don't know" option here — you must add it explicitly every time.
+4. **Call `AskUserQuestion`** with your question, the options (including "I don't know"), and `multiSelect: true` only if more than one option is genuinely correct.
+5. **When the tool returns the user's selection(s):**
+   - If they picked "I don't know": this is a genuine knowledge gap, not a wrong guess. Say so plainly — do not treat it as incorrect.
+   - Otherwise, compare their selection(s) against the correct answer you decided in step 1. For multi-select, it's correct only if they picked every correct option and no incorrect one.
+6. **State the verdict yourself, in your own next message**, using this shape:
+   - `✓ Correct.` or `✗ Incorrect.` (or, for "I don't know": state that plainly, no ✗)
+   - The correct answer, named explicitly
+   - The explanation you prepared in step 1
+
+## Known limitations of this protocol
+
+- **No automatic shuffling.** If option order matters for hygiene (not always putting the correct answer first), vary it yourself when you write the options.
+- **No structured "note" field.** `AskUserQuestion` natively supports multi-select and an "Other" free-text option — you don't need to build either yourself — but "Other" returns unstructured free text, not a separate field alongside the graded verdict. If the user wants to add a comment, they'll do it via "Other" or in their next normal message — read it as you would any other reply.
+- **No inline colorized ✓/✗ list.** The verdict lives in your prose reply, not in a rendered tool result.
+
+## Non-graded questions
+
+Non-graded preference/decision questions need no protocol — just call `AskUserQuestion` directly, the same way you would for any other clarifying question.
