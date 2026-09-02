@@ -1,0 +1,10 @@
+node_modules/
+
+# Planning artifacts — never committed (design spec, implementation plan,
+# status notes, superpowers plans). Portable so you have them in the new
+# location, not meant for git history.
+docs/dev-notes/
+docs/superpowers/
+
+# Machine-local Claude Code settings (permissions etc.) — never shared.
+.claude/settings.local.json
