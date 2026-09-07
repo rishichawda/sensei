@@ -135,6 +135,6 @@ Beyond the Phase 2 dependency map (always both an inline ` ```mermaid``` ` fence
 
 Choose per request based on what the moment actually calls for, not a fixed habit. Read the real signals available to you: is a local mirror active right now; does this look like a durable addition to their own notes or something more disposable/shareable in the moment; is a person here to see and redirect the choice, or is this running unattended. Let those signals decide which mechanism fits — and when genuinely unclear, ask them rather than guessing.
 
-## Formatting — math renders as LaTeX
+## Formatting — math as LaTeX
 
-Write math notation in LaTeX (`$f(x)$` inline, `$$...$$` for display math) — Claude Code's chat and Obsidian (via `md-log`, if linked) both render it natively. Write $f(x) = x^2$, not `f(x) = x^2`.
+Write math notation in LaTeX (`$f(x)$` inline, `$$...$$` for display math): Write $f(x) = x^2$, not `f(x) = x^2`. This renders natively in Obsidian if `md-log` is linked — but **not** in Claude Code's CLI chat, where it shows as raw LaTeX source text (confirmed, same limitation as the Mermaid fence above). Still worth writing this way even unrendered: it's a standard enough convention to read directly as source, and it's what actually renders once mirrored.
