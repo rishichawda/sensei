@@ -89,6 +89,21 @@ test("link.mjs creates the target file when it doesn't exist yet", () => {
   assert.equal(state.file, targetFile);
 });
 
+test("link.mjs reports a clean error when the target's parent directory doesn't exist", () => {
+  const { configRoot, projectDirName, projectDir } = setupProject();
+  const transcriptPath = join(projectDir, "session-missing-parent.jsonl");
+  writeFileSync(transcriptPath, "", "utf8");
+
+  const targetFile = join(mkdtempSync(join(tmpdir(), "md-log-link-target-")), "no-such-dir", "lesson.md");
+
+  const output = execFileSync(process.execPath, [SCRIPT, targetFile], {
+    env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_PROJECT_DIR_NAME: projectDirName },
+  }).toString();
+
+  assert.match(output, /Could not create file/);
+  assert.ok(!existsSync(targetFile));
+});
+
 test("link.mjs rejects a path that is a directory", () => {
   const { configRoot, projectDirName, projectDir } = setupProject();
   const transcriptPath = join(projectDir, "session-dir-target.jsonl");

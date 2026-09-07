@@ -17,7 +17,12 @@ function main() {
       return;
     }
   } else {
-    writeFileSync(resolved, "", "utf8");
+    try {
+      writeFileSync(resolved, "", "utf8");
+    } catch {
+      console.log(`Could not create file: ${resolved} (does its parent directory exist?)`);
+      return;
+    }
   }
   const transcriptPath = findCurrentTranscript();
   if (!transcriptPath) {
