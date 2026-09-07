@@ -1,16 +1,24 @@
 import { appendToFile, userBlock, assistantBlock, readState, writeState } from "./lib.mjs";
+import { handlePreToolUse, handlePostToolUse } from "./ask-user-question.mjs";
 
 // Simplification: backfill/top-up walks the transcript in file order, not by
 // following the active branch's parent-chain — for a rewound/branched session
 // this may include some abandoned-branch turns. Deliberately deferred: low
 // impact for normal single-branch personal use.
 
-function textOf(content) {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content.filter((c) => c.type === "text").map((c) => c.text).join("\n");
-  }
-  return "";
+function blocksOf(content) {
+  if (typeof content === "string") return [{ type: "text", text: content }];
+  if (Array.isArray(content)) return content;
+  return [];
+}
+
+// A transcript entry for an AskUserQuestion tool_result carries the
+// structured { questions, answers } shape at the top level (toolUseResult),
+// not inside message.content — the same shape the live PostToolUse hook
+// receives as tool_response. Reused here instead of re-parsing the
+// human-readable tool_result.content string, which isn't a stable format.
+function isAskUserQuestionResult(toolUseResult) {
+  return !!toolUseResult && Array.isArray(toolUseResult.questions) && !!toolUseResult.answers;
 }
 
 export function backfill(transcriptLines, logFile) {
@@ -24,10 +32,38 @@ export function backfill(transcriptLines, logFile) {
     }
     const msg = entry?.message;
     if (!msg || (msg.role !== "user" && msg.role !== "assistant")) continue;
-    const text = textOf(msg.content).trim();
-    if (!text) continue;
-    appendToFile(logFile, msg.role === "user" ? userBlock(text) : assistantBlock(text));
-    count++;
+
+    let textBuffer = "";
+    const flushText = () => {
+      const text = textBuffer.trim();
+      if (text) {
+        appendToFile(logFile, msg.role === "user" ? userBlock(text) : assistantBlock(text));
+        count++;
+      }
+      textBuffer = "";
+    };
+
+    for (const block of blocksOf(msg.content)) {
+      if (!block || typeof block !== "object") continue;
+      if (block.type === "text" && typeof block.text === "string") {
+        textBuffer += (textBuffer ? "\n" : "") + block.text;
+      } else if (block.type === "tool_use" && block.name === "AskUserQuestion") {
+        flushText();
+        const out = handlePreToolUse({ tool_name: "AskUserQuestion", tool_input: block.input || {} });
+        if (out) {
+          appendToFile(logFile, out);
+          count++;
+        }
+      } else if (block.type === "tool_result" && isAskUserQuestionResult(entry.toolUseResult)) {
+        flushText();
+        const out = handlePostToolUse({ tool_name: "AskUserQuestion", tool_response: entry.toolUseResult });
+        if (out) {
+          appendToFile(logFile, out);
+          count++;
+        }
+      }
+    }
+    flushText();
   }
   return count;
 }

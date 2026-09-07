@@ -1,4 +1,5 @@
-import { appendToFile, questionCallout, answerCallout, cancelledCallout, readState } from "./lib.mjs";
+import { readFileSync, existsSync } from "node:fs";
+import { appendToFile, questionCallout, answerCallout, cancelledCallout, readState, writeState } from "./lib.mjs";
 
 export function handlePreToolUse(payload) {
   if (payload.tool_name !== "AskUserQuestion") return null;
@@ -52,6 +53,19 @@ async function main() {
   else if (payload.hook_event_name === "PostToolUseFailure") block = handlePostToolUseFailure(payload);
 
   if (block) appendToFile(state.file, block);
+
+  // Advance lastLine past whatever this hook just appended live. Without
+  // this, a crash between this append and the turn's Stop event (which is
+  // what normally advances lastLine) leaves lastLine stale, and the next
+  // SessionStart top-up's backfill() re-derives and re-appends the same
+  // Question/Answer callout from the transcript — a real duplicate, not
+  // just a missed one, since backfill() also understands AskUserQuestion.
+  if (existsSync(payload.transcript_path)) {
+    const rawText = readFileSync(payload.transcript_path, "utf8").trim();
+    const lineCount = rawText ? rawText.split("\n").length : 0;
+    const advanced = Math.max(state.lastLine ?? 0, lineCount);
+    if (advanced !== state.lastLine) writeState(payload.transcript_path, { ...state, lastLine: advanced });
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();

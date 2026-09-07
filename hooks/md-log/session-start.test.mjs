@@ -25,6 +25,42 @@ test("backfill writes a user/assistant block per transcript message, in order", 
   assert.ok(youIdx < piIdx && piIdx < you2Idx && you2Idx < pi2Idx, "blocks must appear in transcript order");
 });
 
+test("backfill reconstructs Question/Answer callouts for an AskUserQuestion pair, in order with surrounding text", () => {
+  const dir = mkdtempSync(join(tmpdir(), "md-log-backfill-"));
+  const logFile = join(dir, "lesson.md");
+
+  const assistantLine = JSON.stringify({
+    type: "assistant",
+    message: {
+      role: "assistant",
+      content: [
+        { type: "text", text: "Let me ask you something first." },
+        {
+          type: "tool_use",
+          name: "AskUserQuestion",
+          input: { questions: [{ question: "Pick a number", header: "Number", options: [{ label: "1" }, { label: "2" }] }] },
+        },
+      ],
+    },
+  });
+  const userLine = JSON.stringify({
+    type: "user",
+    message: { role: "user", content: [{ type: "tool_result", content: "ignored display string", tool_use_id: "toolu_1" }] },
+    toolUseResult: { questions: [{ question: "Pick a number" }], answers: { "Pick a number": "42" }, annotations: {} },
+  });
+
+  const count = backfill([assistantLine, userLine], logFile);
+
+  assert.equal(count, 3);
+  const content = readFileSync(logFile, "utf8");
+  const introIdx = content.indexOf("Let me ask you something first.");
+  const questionIdx = content.indexOf("Pick a number");
+  const answerIdx = content.indexOf("42");
+  assert.ok(introIdx < questionIdx && questionIdx < answerIdx, "intro text, question, then answer must appear in order");
+  assert.match(content, /\[!question\]/);
+  assert.match(content, /\[!example\] Answer/);
+});
+
 test("backfill skips malformed lines instead of throwing", () => {
   const dir = mkdtempSync(join(tmpdir(), "md-log-backfill-"));
   const logFile = join(dir, "lesson.md");
