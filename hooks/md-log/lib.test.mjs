@@ -33,7 +33,7 @@ test("questionCallout lists numbered options", () => {
 });
 
 test("answerCallout renders selected answers", () => {
-  const out = answerCallout([{ label: "A" }]);
+  const out = answerCallout(["A"]);
   assert.match(out, /A/);
 });
 

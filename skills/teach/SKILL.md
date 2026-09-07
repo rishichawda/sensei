@@ -89,6 +89,8 @@ Do not advance to Phase 2 until, for each goal-relevant strand, you can state co
 
 **1b. Their learning goal — use `AskUserQuestion` directly (no grading).** Find out what they actually want taught. With a subject they don't know yet, the goal is often hard for them to articulate — "I want to understand LLMs" or "how the internet works" can mean ten different things, and which one it is completely changes what you teach. Interrogate the vision until it's concrete. This has no right answer, so it's a plain `AskUserQuestion` call, never the quiz protocol.
 
+**Declining one batch of questions is not permission to stop using the tool.** Whenever you've decided a question belongs in `AskUserQuestion` (graded or plain), that decision doesn't change just because they skipped answering the last one — asking the same or a follow-up question as freeform prose instead is a downgrade they didn't ask for, and it stops the interaction from mirroring correctly. If they decline, treat that as *content* (they don't want to answer that right now, or at all) — drop the topic, narrow it, or move on — but the next time a real question is warranted, it still goes through the tool.
+
 ### Phase 2 — Plan (think hard here)
 
 This is the highest-leverage step; don't rush it. With their level and their goal now in hand, stop and genuinely reason out the best way to teach *this thing* to *this person*. Re-read the philosophy above and plan against it:
@@ -126,6 +128,12 @@ For **every node** (each unconditional truth *and* each non-trivial reasoning st
 Repeat this full loop per node — don't front-load all the foundations once at the start and then stop checking. Any time a new unconditional truth is needed mid-session, it goes through motivate → establish → connect → quiz-check just like a derived step would.
 
 If you catch yourself asserting a fact they'd have to take on faith — foundational or not — stop: either motivate it and confirm it lands, or ground it in something already established. Unmotivated, unconfirmed facts don't lock in — that's the whole point.
+
+## Choosing how to render a diagram or visual
+
+Beyond the Phase 2 dependency map (always inline ` ```mermaid``` `, per above), anything else this skill visualizes — mid-lesson illustrations, an ad-hoc "show me a diagram" request, anything you'd otherwise dispatch to `mermaid-maker` or `svg-maker` — has two genuinely different options, not one correct default: a local render that lands in the user's own files (persists into their vault, mirrors through `md-log` if linked, stays private to their machine) versus a hosted, shareable page (lives outside the vault, easy to hand to someone else, works even when nothing is being mirrored locally).
+
+Choose per request based on what the moment actually calls for, not a fixed habit. Read the real signals available to you: is a local mirror active right now; does this look like a durable addition to their own notes or something more disposable/shareable in the moment; is a person here to see and redirect the choice, or is this running unattended. Let those signals decide which mechanism fits — and when genuinely unclear, ask them rather than guessing.
 
 ## Formatting — math renders as LaTeX
 

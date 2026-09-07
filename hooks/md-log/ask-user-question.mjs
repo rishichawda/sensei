@@ -12,16 +12,21 @@ export function handlePreToolUse(payload) {
   return blocks.join("\n\n");
 }
 
-// NOTE: the exact field name on tool_response for AskUserQuestion's answers
-// (assumed here to be `answers`) is NOT confirmed against real Claude Code
-// output — check it against an actual payload before relying on this in production.
+// tool_response.answers is an object keyed by question text, each value the
+// chosen option's label as a plain string (not an array of {label} objects) —
+// confirmed against a real Claude Code payload.
 export function handlePostToolUse(payload) {
   if (payload.tool_name !== "AskUserQuestion") return null;
   const answers = payload.tool_response?.answers;
-  if (!Array.isArray(answers)) return null;
-  return answerCallout(answers);
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return null;
+  return answerCallout(Object.values(answers));
 }
 
+// Dismissing/declining an AskUserQuestion call is rejected at Claude Code's
+// permission layer before the tool ever executes, so it never reaches either
+// PostToolUse or PostToolUseFailure — confirmed against a real session. This
+// handler still covers a genuine AskUserQuestion execution failure, if one
+// ever occurs; it does not (and cannot) cover the user declining to answer.
 export function handlePostToolUseFailure(payload) {
   if (payload.tool_name !== "AskUserQuestion") return null;
   return cancelledCallout();

@@ -1,5 +1,5 @@
 // sensei/hooks/md-log/link.mjs
-import { existsSync, statSync, readFileSync } from "node:fs";
+import { existsSync, statSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { writeState, findCurrentTranscript } from "./lib.mjs";
 import { backfill } from "./session-start.mjs";
@@ -11,9 +11,13 @@ function main() {
     return;
   }
   const resolved = resolve(filepath);
-  if (!existsSync(resolved) || !statSync(resolved).isFile()) {
-    console.log(`File does not exist or is not a file: ${resolved}`);
-    return;
+  if (existsSync(resolved)) {
+    if (!statSync(resolved).isFile()) {
+      console.log(`Not a file: ${resolved}`);
+      return;
+    }
+  } else {
+    writeFileSync(resolved, "", "utf8");
   }
   const transcriptPath = findCurrentTranscript();
   if (!transcriptPath) {

@@ -8,3 +8,7 @@ docs/superpowers/
 
 # Machine-local Claude Code settings (permissions etc.) — never shared.
 .claude/settings.local.json
+
+# Runtime output from the teach skill's diagram publishing (mermaid-maker/
+# svg-maker write here at whatever cwd they're run from) — never committed.
+viz/

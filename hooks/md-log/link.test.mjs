@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,6 +68,39 @@ test("link.mjs backfills nothing (0 entries) when the transcript has no messages
   const state = readState(transcriptPath);
   assert.equal(state.file, targetFile);
   assert.equal(state.lastLine, 0, "an empty transcript must not push lastLine to 1 and swallow the next real turn");
+});
+
+test("link.mjs creates the target file when it doesn't exist yet", () => {
+  const { configRoot, projectDirName, projectDir } = setupProject();
+  const transcriptPath = join(projectDir, "session-new-target.jsonl");
+  writeFileSync(transcriptPath, "", "utf8");
+
+  const targetDir = mkdtempSync(join(tmpdir(), "md-log-link-target-"));
+  const targetFile = join(targetDir, "does-not-exist-yet.md");
+
+  const output = execFileSync(process.execPath, [SCRIPT, targetFile], {
+    env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_PROJECT_DIR_NAME: projectDirName },
+  }).toString();
+
+  assert.match(output, /Linked:/);
+  assert.ok(existsSync(targetFile));
+
+  const state = readState(transcriptPath);
+  assert.equal(state.file, targetFile);
+});
+
+test("link.mjs rejects a path that is a directory", () => {
+  const { configRoot, projectDirName, projectDir } = setupProject();
+  const transcriptPath = join(projectDir, "session-dir-target.jsonl");
+  writeFileSync(transcriptPath, "", "utf8");
+
+  const targetDir = mkdtempSync(join(tmpdir(), "md-log-link-target-"));
+
+  const output = execFileSync(process.execPath, [SCRIPT, targetDir], {
+    env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_PROJECT_DIR_NAME: projectDirName },
+  }).toString();
+
+  assert.match(output, /Not a file/);
 });
 
 test("linking against an empty transcript does not drop the first turn that lands afterward (stop.mjs top-up)", () => {

@@ -25,7 +25,7 @@ export function questionCallout(label, question, options) {
 }
 
 export function answerCallout(answers) {
-  const body = answers.length > 0 ? answers.map((a) => a.label) : ["(no answer)"];
+  const body = answers.length > 0 ? answers : ["(no answer)"];
   return callout("example", "Answer", body);
 }
 

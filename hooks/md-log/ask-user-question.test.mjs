@@ -54,13 +54,30 @@ test("PreToolUse returns null when tool_input.questions is missing or not an arr
 test("PostToolUse on AskUserQuestion logs the answer", () => {
   const out = handlePostToolUse({
     tool_name: "AskUserQuestion",
-    tool_response: { answers: [{ label: "42" }] },
+    tool_response: { answers: { "Pick a number": "42" } },
   });
   assert.match(out, /42/);
 });
 
+test("PostToolUse logs every answer in a multi-question call", () => {
+  const out = handlePostToolUse({
+    tool_name: "AskUserQuestion",
+    tool_response: { answers: { "Pick a number": "42", "Pick a color": "Red" } },
+  });
+  assert.match(out, /42/);
+  assert.match(out, /Red/);
+});
+
 test("PostToolUse ignores other tools", () => {
   assert.equal(handlePostToolUse({ tool_name: "Bash", tool_response: {} }), null);
+});
+
+test("PostToolUse returns null when tool_response.answers is missing or not an object", () => {
+  assert.equal(handlePostToolUse({ tool_name: "AskUserQuestion", tool_response: {} }), null);
+  assert.equal(
+    handlePostToolUse({ tool_name: "AskUserQuestion", tool_response: { answers: "nope" } }),
+    null,
+  );
 });
 
 test("PostToolUseFailure on AskUserQuestion logs a cancelled callout", () => {
