@@ -1,6 +1,6 @@
 {
-  "name": "sensei",
-  "description": "sensei plugin marketplace",
+  "name": "rishichawda",
+  "description": "rishichawda's Claude Code plugin marketplace",
   "owner": { "name": "rishichawda", "email": "rishichawda@users.noreply.github.com" },
   "plugins": [
     {

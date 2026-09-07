@@ -23,5 +23,5 @@ claude plugin install sensei@sensei-dev
 
 ```bash
 claude plugin marketplace add https://github.com/rishichawda/sensei
-claude plugin install sensei@sensei
+claude plugin install sensei@rishichawda
 ```
