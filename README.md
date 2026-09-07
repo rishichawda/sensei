@@ -18,3 +18,10 @@ Run from inside this directory (`sensei`'s own root):
 claude plugin marketplace add ./
 claude plugin install sensei@sensei-dev
 ```
+
+## Install (production)
+
+```bash
+claude plugin marketplace add https://github.com/rishichawda/sensei
+claude plugin install sensei@sensei
+```

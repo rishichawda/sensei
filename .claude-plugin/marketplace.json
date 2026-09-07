@@ -1,6 +1,6 @@
 {
-  "name": "sensei-dev",
-  "description": "Local development marketplace for the sensei plugin",
+  "name": "sensei",
+  "description": "sensei plugin marketplace",
   "owner": { "name": "rishichawda", "email": "rishichawda@users.noreply.github.com" },
   "plugins": [
     {
