@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, existsSync, accessSync, constants, mkdirSync, rmSync, copyFileSync, symlinkSync } from "node:fs";
+import { mkdtempSync, existsSync, accessSync, constants, mkdirSync, rmSync, copyFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,7 +51,7 @@ test("render-mermaid.sh fails cleanly on invalid syntax", { skip: skipReason }, 
   assert.ok(!existsSync(out));
 });
 
-test("render-mermaid.sh refuses to read a source outside $TMPDIR", { skip: skipReason }, () => {
+test("render-mermaid.sh refuses to read a source outside $TMPDIR", () => {
   const dir = mkdtempSync(join(tmpdir(), "render-mermaid-test-"));
   const out = join(dir, "out.png");
   assert.throws(
@@ -61,7 +61,7 @@ test("render-mermaid.sh refuses to read a source outside $TMPDIR", { skip: skipR
   assert.ok(!existsSync(out));
 });
 
-test("render-mermaid.sh refuses to write outside $TMPDIR", { skip: skipReason }, () => {
+test("render-mermaid.sh refuses to write outside $TMPDIR", () => {
   const src = copyFixtureToTmp("valid.mmd");
   const outsideDir = join(FIXTURES, "not-under-tmp-mermaid");
   mkdirSync(outsideDir, { recursive: true });
@@ -77,7 +77,7 @@ test("render-mermaid.sh refuses to write outside $TMPDIR", { skip: skipReason },
   }
 });
 
-test("render-mermaid.sh refuses to write through a symlink pointing outside $TMPDIR", { skip: skipReason }, () => {
+test("render-mermaid.sh refuses to write through a symlink pointing outside $TMPDIR", () => {
   const src = copyFixtureToTmp("valid.mmd");
   const dir = mkdtempSync(join(tmpdir(), "render-mermaid-test-"));
   const out = join(dir, "sneaky.png");
@@ -90,4 +90,20 @@ test("render-mermaid.sh refuses to write through a symlink pointing outside $TMP
   } finally {
     rmSync(out, { force: true });
   }
+});
+
+test("render-mermaid.sh refuses a symlink chain longer than the 20-hop bound", () => {
+  const src = copyFixtureToTmp("valid.mmd");
+  const dir = mkdtempSync(join(tmpdir(), "render-mermaid-test-"));
+  writeFileSync(join(dir, "final.txt"), "end");
+  let targetName = "final.txt";
+  for (let i = 24; i >= 0; i--) {
+    symlinkSync(targetName, join(dir, `l${i}`));
+    targetName = `l${i}`;
+  }
+  const out = join(dir, "l0");
+  assert.throws(
+    () => execFileSync("bash", [SCRIPT, src, out], { stdio: "pipe" }),
+    (err) => /symlink chain exceeds 20 hops/.test(err.stderr.toString())
+  );
 });

@@ -23,7 +23,7 @@ test("publish.sh slugifies and copies into <cwd>/viz with a unique filename", ()
 
 test("publish.sh fails loudly when the source file doesn't exist", () => {
   const dir = mkdtempSync(join(tmpdir(), "publish-test-"));
-  assert.throws(() => execFileSync("bash", [SCRIPT, join(dir, "missing.png"), "slug"]));
+  assert.throws(() => execFileSync("bash", [SCRIPT, join(dir, "missing.png"), "slug"], { cwd: dir }));
 });
 
 test("publish.sh falls back to 'viz' when the slug has no alphanumeric characters", () => {
@@ -55,6 +55,22 @@ test("publish.sh refuses to publish through a symlink pointing outside $TMPDIR",
   assert.throws(
     () => execFileSync("bash", [SCRIPT, sneaky, "slug"], { cwd: dir, stdio: "pipe" }),
     (err) => /refusing to use the source path outside \$TMPDIR/.test(err.stderr.toString())
+  );
+  assert.ok(!existsSync(join(dir, "viz")));
+});
+
+test("publish.sh refuses a symlink chain longer than the 20-hop bound", () => {
+  const dir = mkdtempSync(join(tmpdir(), "publish-test-"));
+  writeFileSync(join(dir, "final.png"), "end");
+  let targetName = "final.png";
+  for (let i = 24; i >= 0; i--) {
+    symlinkSync(targetName, join(dir, `l${i}`));
+    targetName = `l${i}`;
+  }
+  const src = join(dir, "l0");
+  assert.throws(
+    () => execFileSync("bash", [SCRIPT, src, "slug"], { cwd: dir, stdio: "pipe" }),
+    (err) => /symlink chain exceeds 20 hops/.test(err.stderr.toString())
   );
   assert.ok(!existsSync(join(dir, "viz")));
 });

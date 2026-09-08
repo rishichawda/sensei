@@ -10,11 +10,6 @@ fi
 RENDERED="$1"
 SLUG="$2"
 
-if [ ! -f "$RENDERED" ]; then
-  echo "publish.sh: rendered file not found: $RENDERED" >&2
-  exit 1
-fi
-
 resolve_confined() {
   local label="$1" target="$2" hops=0 resolved dir temp_root
   if [ ! -d "$(dirname "$target")" ]; then
@@ -29,6 +24,10 @@ resolve_confined() {
     esac
     hops=$((hops + 1))
   done
+  if [ -L "$target" ]; then
+    echo "publish.sh: refusing to use ${label} path: symlink chain exceeds 20 hops: $2" >&2
+    exit 1
+  fi
   dir="$(cd "$(dirname "$target")" && pwd -P)"
   temp_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
   case "$dir" in
@@ -41,6 +40,11 @@ resolve_confined() {
 }
 
 resolve_confined "the source" "$RENDERED"
+
+if [ ! -f "$RENDERED" ]; then
+  echo "publish.sh: rendered file not found: $RENDERED" >&2
+  exit 1
+fi
 
 CLEAN_SLUG=$(printf '%s' "$SLUG" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
 if [ -z "$CLEAN_SLUG" ]; then

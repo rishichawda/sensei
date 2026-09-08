@@ -28,6 +28,10 @@ resolve_confined() {
     esac
     hops=$((hops + 1))
   done
+  if [ -L "$target" ]; then
+    echo "render-svg.sh: refusing to use ${label} path: symlink chain exceeds 20 hops: $2" >&2
+    exit 1
+  fi
   dir="$(cd "$(dirname "$target")" && pwd -P)"
   temp_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
   case "$dir" in
