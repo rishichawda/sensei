@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, existsSync } from "node:fs";
+import { mkdtempSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 
 const SCRIPT = new URL("./render-svg.sh", import.meta.url).pathname;
 const FIXTURE = new URL("./fixtures/valid.svg", import.meta.url).pathname;
@@ -42,4 +42,16 @@ test("render-svg.sh fails cleanly and leaves no output file when both tools reje
   const out = join(dir, "out.png");
   assert.throws(() => execFileSync("bash", [SCRIPT, INVALID_FIXTURE, out]));
   assert.ok(!existsSync(out));
+});
+
+test("render-svg.sh refuses to write outside $TMPDIR", { skip: skipReason }, () => {
+  const outsideDir = join(dirname(FIXTURE), "not-under-tmp");
+  mkdirSync(outsideDir, { recursive: true });
+  const out = join(outsideDir, "out.png");
+  try {
+    assert.throws(() => execFileSync("bash", [SCRIPT, FIXTURE, out]));
+    assert.ok(!existsSync(out));
+  } finally {
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
 });
