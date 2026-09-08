@@ -40,11 +40,14 @@ test("render-mermaid.sh fails cleanly on invalid syntax", { skip: skipReason }, 
 });
 
 test("render-mermaid.sh refuses to write outside $TMPDIR", { skip: skipReason }, () => {
-  const outsideDir = join(FIXTURES, "not-under-tmp");
+  const outsideDir = join(FIXTURES, "not-under-tmp-mermaid");
   mkdirSync(outsideDir, { recursive: true });
   const out = join(outsideDir, "out.png");
   try {
-    assert.throws(() => execFileSync("bash", [SCRIPT, join(FIXTURES, "valid.mmd"), out]));
+    assert.throws(
+      () => execFileSync("bash", [SCRIPT, join(FIXTURES, "valid.mmd"), out], { stdio: "pipe" }),
+      (err) => /refusing to write outside \$TMPDIR/.test(err.stderr.toString())
+    );
     assert.ok(!existsSync(out));
   } finally {
     rmSync(outsideDir, { recursive: true, force: true });

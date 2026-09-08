@@ -82,17 +82,26 @@ test("CLI record then get round-trips the recorded node", () => {
 test("CLI record rejects an invalid status", () => {
   const configDir = freshConfigDir();
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
-  assert.throws(() => execFileSync("node", [SCRIPT, "record", "Networking", "Packets", "mastered"], { env }));
+  assert.throws(
+    () => execFileSync("node", [SCRIPT, "record", "Networking", "Packets", "mastered"], { env, stdio: "pipe" }),
+    (err) => /invalid status "mastered"/.test(err.stderr.toString())
+  );
 });
 
 test("CLI record requires all three arguments", () => {
   const configDir = freshConfigDir();
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
-  assert.throws(() => execFileSync("node", [SCRIPT, "record", "Networking", "Packets"], { env }));
+  assert.throws(
+    () => execFileSync("node", [SCRIPT, "record", "Networking", "Packets"], { env, stdio: "pipe" }),
+    (err) => /Usage: mastery\.mjs record/.test(err.stderr.toString())
+  );
 });
 
 test("CLI rejects an unknown subcommand", () => {
   const configDir = freshConfigDir();
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
-  assert.throws(() => execFileSync("node", [SCRIPT, "list"], { env }));
+  assert.throws(
+    () => execFileSync("node", [SCRIPT, "list"], { env, stdio: "pipe" }),
+    (err) => /Usage: mastery\.mjs <get\|record>/.test(err.stderr.toString())
+  );
 });

@@ -45,11 +45,14 @@ test("render-svg.sh fails cleanly and leaves no output file when both tools reje
 });
 
 test("render-svg.sh refuses to write outside $TMPDIR", { skip: skipReason }, () => {
-  const outsideDir = join(dirname(FIXTURE), "not-under-tmp");
+  const outsideDir = join(dirname(FIXTURE), "not-under-tmp-svg");
   mkdirSync(outsideDir, { recursive: true });
   const out = join(outsideDir, "out.png");
   try {
-    assert.throws(() => execFileSync("bash", [SCRIPT, FIXTURE, out]));
+    assert.throws(
+      () => execFileSync("bash", [SCRIPT, FIXTURE, out], { stdio: "pipe" }),
+      (err) => /refusing to write outside \$TMPDIR/.test(err.stderr.toString())
+    );
     assert.ok(!existsSync(out));
   } finally {
     rmSync(outsideDir, { recursive: true, force: true });
