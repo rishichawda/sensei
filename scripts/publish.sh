@@ -15,15 +15,32 @@ if [ ! -f "$RENDERED" ]; then
   exit 1
 fi
 
-TEMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
-RENDERED_DIR="$(cd "$(dirname "$RENDERED")" && pwd -P)"
-case "$RENDERED_DIR" in
-  "$TEMP_ROOT"|"$TEMP_ROOT"/*) : ;;
-  *)
-    echo "publish.sh: refusing to publish a file from outside \$TMPDIR (${TEMP_ROOT}): ${RENDERED}" >&2
+resolve_confined() {
+  local label="$1" target="$2" hops=0 resolved dir temp_root
+  if [ ! -d "$(dirname "$target")" ]; then
+    echo "publish.sh: ${label} directory does not exist: $(dirname "$target")" >&2
     exit 1
-    ;;
-esac
+  fi
+  while [ -L "$target" ] && [ "$hops" -lt 20 ]; do
+    resolved="$(readlink "$target")"
+    case "$resolved" in
+      /*) target="$resolved" ;;
+      *) target="$(dirname "$target")/$resolved" ;;
+    esac
+    hops=$((hops + 1))
+  done
+  dir="$(cd "$(dirname "$target")" && pwd -P)"
+  temp_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+  case "$dir" in
+    "$temp_root"|"$temp_root"/*) : ;;
+    *)
+      echo "publish.sh: refusing to use ${label} path outside \$TMPDIR (${temp_root}): $2 -> ${dir}/$(basename "$target")" >&2
+      exit 1
+      ;;
+  esac
+}
+
+resolve_confined "the source" "$RENDERED"
 
 CLEAN_SLUG=$(printf '%s' "$SLUG" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
 if [ -z "$CLEAN_SLUG" ]; then

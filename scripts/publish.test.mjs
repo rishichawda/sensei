@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -23,7 +23,7 @@ test("publish.sh slugifies and copies into <cwd>/viz with a unique filename", ()
 
 test("publish.sh fails loudly when the source file doesn't exist", () => {
   const dir = mkdtempSync(join(tmpdir(), "publish-test-"));
-  assert.throws(() => execFileSync("bash", [SCRIPT, join(dir, "missing.png"), "slug"], { cwd: dir }));
+  assert.throws(() => execFileSync("bash", [SCRIPT, join(dir, "missing.png"), "slug"]));
 });
 
 test("publish.sh falls back to 'viz' when the slug has no alphanumeric characters", () => {
@@ -41,6 +41,20 @@ test("publish.sh requires exactly two arguments", () => {
 test("publish.sh refuses to publish a source file from outside $TMPDIR", () => {
   const dir = mkdtempSync(join(tmpdir(), "publish-test-"));
   const outsideSrc = new URL("./fixtures/valid.svg", import.meta.url).pathname;
-  assert.throws(() => execFileSync("bash", [SCRIPT, outsideSrc, "slug"], { cwd: dir }));
+  assert.throws(
+    () => execFileSync("bash", [SCRIPT, outsideSrc, "slug"], { cwd: dir, stdio: "pipe" }),
+    (err) => /refusing to use the source path outside \$TMPDIR/.test(err.stderr.toString())
+  );
+  assert.ok(!existsSync(join(dir, "viz")));
+});
+
+test("publish.sh refuses to publish through a symlink pointing outside $TMPDIR", () => {
+  const dir = mkdtempSync(join(tmpdir(), "publish-test-"));
+  const sneaky = join(dir, "sneaky.png");
+  symlinkSync("/etc/hosts", sneaky);
+  assert.throws(
+    () => execFileSync("bash", [SCRIPT, sneaky, "slug"], { cwd: dir, stdio: "pipe" }),
+    (err) => /refusing to use the source path outside \$TMPDIR/.test(err.stderr.toString())
+  );
   assert.ok(!existsSync(join(dir, "viz")));
 });
