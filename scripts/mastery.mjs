@@ -1,5 +1,7 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+
+const LEDGER_VERSION = 1;
 
 export function slugify(text) {
   const cleaned = String(text)
@@ -14,30 +16,43 @@ export function ledgerPath() {
   return resolve(configRoot, "sensei", "mastery.json");
 }
 
+export function emptyLedger() {
+  return { version: LEDGER_VERSION, topics: {} };
+}
+
 export function readLedger() {
   const path = ledgerPath();
-  if (!existsSync(path)) return {};
+  if (!existsSync(path)) return emptyLedger();
+  let parsed;
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return {};
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    console.error(`mastery.mjs: warning: could not parse ledger at ${path} (starting fresh): ${err.message}`);
+    return emptyLedger();
   }
+  if (!parsed || typeof parsed.topics !== "object") {
+    console.error(`mastery.mjs: warning: ledger at ${path} has an unrecognized shape (starting fresh)`);
+    return emptyLedger();
+  }
+  return parsed;
 }
 
 export function writeLedger(ledger) {
   const path = ledgerPath();
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(ledger), "utf8");
+  const tmpPath = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(ledger), "utf8");
+  renameSync(tmpPath, path);
 }
 
 export function getTopic(ledger, topicSlug) {
-  return ledger[topicSlug] || {};
+  return ledger.topics[topicSlug] || {};
 }
 
 export function recordNode(ledger, topicSlug, nodeId, status) {
-  const topic = { ...(ledger[topicSlug] || {}) };
+  const topic = { ...(ledger.topics[topicSlug] || {}) };
   topic[nodeId] = { status, lastTaughtAt: new Date().toISOString() };
-  return { ...ledger, [topicSlug]: topic };
+  return { ...ledger, topics: { ...ledger.topics, [topicSlug]: topic } };
 }
 
 function main() {
