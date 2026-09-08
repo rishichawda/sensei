@@ -10,15 +10,33 @@ fi
 SRC="$1"
 OUT="$2"
 
-TEMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
-OUT_DIR="$(cd "$(dirname "$OUT")" && pwd -P)"
-case "$OUT_DIR" in
-  "$TEMP_ROOT"|"$TEMP_ROOT"/*) : ;;
-  *)
-    echo "render-mermaid.sh: refusing to write outside \$TMPDIR (${TEMP_ROOT}): ${OUT}" >&2
+resolve_confined() {
+  local label="$1" target="$2" hops=0 resolved dir temp_root
+  if [ ! -d "$(dirname "$target")" ]; then
+    echo "render-mermaid.sh: ${label} directory does not exist: $(dirname "$target")" >&2
     exit 1
-    ;;
-esac
+  fi
+  while [ -L "$target" ] && [ "$hops" -lt 20 ]; do
+    resolved="$(readlink "$target")"
+    case "$resolved" in
+      /*) target="$resolved" ;;
+      *) target="$(dirname "$target")/$resolved" ;;
+    esac
+    hops=$((hops + 1))
+  done
+  dir="$(cd "$(dirname "$target")" && pwd -P)"
+  temp_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+  case "$dir" in
+    "$temp_root"|"$temp_root"/*) : ;;
+    *)
+      echo "render-mermaid.sh: refusing to use ${label} path outside \$TMPDIR (${temp_root}): $2 -> ${dir}/$(basename "$target")" >&2
+      exit 1
+      ;;
+  esac
+}
+
+resolve_confined "the source" "$SRC"
+resolve_confined "the output" "$OUT"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
