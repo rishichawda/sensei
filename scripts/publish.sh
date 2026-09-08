@@ -15,6 +15,16 @@ if [ ! -f "$RENDERED" ]; then
   exit 1
 fi
 
+TEMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+RENDERED_DIR="$(cd "$(dirname "$RENDERED")" && pwd -P)"
+case "$RENDERED_DIR" in
+  "$TEMP_ROOT"|"$TEMP_ROOT"/*) : ;;
+  *)
+    echo "publish.sh: refusing to publish a file from outside \$TMPDIR (${TEMP_ROOT}): ${RENDERED}" >&2
+    exit 1
+    ;;
+esac
+
 CLEAN_SLUG=$(printf '%s' "$SLUG" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
 if [ -z "$CLEAN_SLUG" ]; then
   CLEAN_SLUG="viz"

@@ -37,3 +37,10 @@ test("publish.sh falls back to 'viz' when the slug has no alphanumeric character
 test("publish.sh requires exactly two arguments", () => {
   assert.throws(() => execFileSync("bash", [SCRIPT, "only-one-arg"]));
 });
+
+test("publish.sh refuses to publish a source file from outside $TMPDIR", () => {
+  const dir = mkdtempSync(join(tmpdir(), "publish-test-"));
+  const outsideSrc = new URL("./fixtures/valid.svg", import.meta.url).pathname;
+  assert.throws(() => execFileSync("bash", [SCRIPT, outsideSrc, "slug"], { cwd: dir }));
+  assert.ok(!existsSync(join(dir, "viz")));
+});
