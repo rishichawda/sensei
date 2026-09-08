@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, existsSync, accessSync, constants } from "node:fs";
+import { mkdtempSync, existsSync, accessSync, constants, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,4 +37,16 @@ test("render-mermaid.sh fails cleanly on invalid syntax", { skip: skipReason }, 
   const out = join(dir, "out.png");
   assert.throws(() => execFileSync("bash", [SCRIPT, join(FIXTURES, "invalid.mmd"), out]));
   assert.ok(!existsSync(out));
+});
+
+test("render-mermaid.sh refuses to write outside $TMPDIR", { skip: skipReason }, () => {
+  const outsideDir = join(FIXTURES, "not-under-tmp");
+  mkdirSync(outsideDir, { recursive: true });
+  const out = join(outsideDir, "out.png");
+  try {
+    assert.throws(() => execFileSync("bash", [SCRIPT, join(FIXTURES, "valid.mmd"), out]));
+    assert.ok(!existsSync(out));
+  } finally {
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
 });

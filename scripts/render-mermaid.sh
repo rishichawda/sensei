@@ -9,6 +9,17 @@ fi
 
 SRC="$1"
 OUT="$2"
+
+TEMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+OUT_DIR="$(cd "$(dirname "$OUT")" && pwd -P)"
+case "$OUT_DIR" in
+  "$TEMP_ROOT"|"$TEMP_ROOT"/*) : ;;
+  *)
+    echo "render-mermaid.sh: refusing to write outside \$TMPDIR (${TEMP_ROOT}): ${OUT}" >&2
+    exit 1
+    ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MMDC="${PLUGIN_ROOT}/node_modules/.bin/mmdc"
