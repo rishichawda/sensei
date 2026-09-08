@@ -30,7 +30,7 @@ export function readLedger() {
     console.error(`mastery.mjs: warning: could not parse ledger at ${path} (starting fresh): ${err.message}`);
     return emptyLedger();
   }
-  if (!parsed || typeof parsed.topics !== "object") {
+  if (!parsed || parsed.topics === null || typeof parsed.topics !== "object") {
     console.error(`mastery.mjs: warning: ledger at ${path} has an unrecognized shape (starting fresh)`);
     return emptyLedger();
   }

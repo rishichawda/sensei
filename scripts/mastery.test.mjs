@@ -107,6 +107,26 @@ test("readLedger warns to stderr and returns emptyLedger() when the file is corr
   });
 });
 
+test("readLedger warns to stderr and returns emptyLedger() when topics is null", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const path = ledgerPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ version: 1, topics: null }), "utf8");
+    let stderrOutput = "";
+    const originalError = console.error;
+    console.error = (msg) => { stderrOutput += msg; };
+    let result;
+    try {
+      result = readLedger();
+    } finally {
+      console.error = originalError;
+    }
+    assert.deepEqual(result, emptyLedger());
+    assert.match(stderrOutput, /unrecognized shape/);
+  });
+});
+
 test("writeLedger writes atomically and readLedger reads back exactly what was written", () => {
   const configDir = freshConfigDir();
   withConfigDir(configDir, () => {
