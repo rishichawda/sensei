@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import { slugify, getTopic, recordNode, emptyLedger, readLedger, writeLedger, ledgerPath } from "./mastery.mjs";
+import { slugify, getTopic, recordNode, listTopics, emptyLedger, readLedger, writeLedger, ledgerPath } from "./mastery.mjs";
 
 const SCRIPT = new URL("./mastery.mjs", import.meta.url).pathname;
 
@@ -78,6 +78,21 @@ test("recordNode overwrites an existing node's status without disturbing sibling
   assert.equal(after.topics.networking.packets.status, "passed");
   assert.equal(after.topics.networking.tcp.status, "seen", "sibling node status should remain unchanged");
   assert.equal(after.topics.networking.tcp.lastTaughtAt, "2026-01-01T00:00:00.000Z", "sibling node lastTaughtAt should remain unchanged");
+});
+
+test("listTopics returns an empty array for an empty ledger", () => {
+  assert.deepEqual(listTopics(emptyLedger()), []);
+});
+
+test("listTopics returns all topic slugs sorted alphabetically", () => {
+  const ledger = {
+    version: 1,
+    topics: {
+      "powershell-scripting": { foo: { status: "seen", lastTaughtAt: "2026-01-01T00:00:00.000Z" } },
+      networking: { packets: { status: "passed", lastTaughtAt: "2026-01-01T00:00:00.000Z" } },
+    },
+  };
+  assert.deepEqual(listTopics(ledger), ["networking", "powershell-scripting"]);
 });
 
 test("readLedger returns emptyLedger() when no file exists", () => {
@@ -188,6 +203,22 @@ test("CLI rejects an unknown subcommand", () => {
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
   assert.throws(
     () => execFileSync("node", [SCRIPT, "list"], { env, stdio: "pipe" }),
-    (err) => /Usage: mastery\.mjs <get\|record>/.test(err.stderr.toString())
+    (err) => /Usage: mastery\.mjs <get\|record\|topics>/.test(err.stderr.toString())
   );
+});
+
+test("CLI topics on an empty ledger prints an empty array", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const output = execFileSync("node", [SCRIPT, "topics"], { env }).toString().trim();
+  assert.equal(output, "[]");
+});
+
+test("CLI topics lists every recorded topic slug alphabetically", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  execFileSync("node", [SCRIPT, "record", "PowerShell Scripting", "objects", "seen"], { env });
+  execFileSync("node", [SCRIPT, "record", "Networking", "packets", "seen"], { env });
+  const output = execFileSync("node", [SCRIPT, "topics"], { env }).toString().trim();
+  assert.deepEqual(JSON.parse(output), ["networking", "powershell-scripting"]);
 });

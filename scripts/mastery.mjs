@@ -49,6 +49,10 @@ export function getTopic(ledger, topicSlug) {
   return ledger.topics[topicSlug] || {};
 }
 
+export function listTopics(ledger) {
+  return Object.keys(ledger.topics).sort();
+}
+
 export function recordNode(ledger, topicSlug, nodeId, status) {
   const topic = { ...(ledger.topics[topicSlug] || {}) };
   topic[nodeId] = { status, lastTaughtAt: new Date().toISOString() };
@@ -69,6 +73,11 @@ function main() {
     return;
   }
 
+  if (command === "topics") {
+    console.log(JSON.stringify(listTopics(readLedger())));
+    return;
+  }
+
   if (command === "record") {
     if (!topicArg || !nodeIdArg || !statusArg) {
       console.error("Usage: mastery.mjs record <topic> <node-id> <seen|passed|failed>");
@@ -86,7 +95,7 @@ function main() {
     return;
   }
 
-  console.error("Usage: mastery.mjs <get|record> ...");
+  console.error("Usage: mastery.mjs <get|record|topics> ...");
   process.exit(1);
 }
 
