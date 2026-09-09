@@ -40,10 +40,10 @@ Keep the idea intact but trust the maker to compose; if your brief lists more th
 
 ## Invoke
 
-Dispatch the maker with the Agent tool, setting `subagent_type` to the maker's name and the task/prompt to your minimal, concrete brief:
+Dispatch the maker with the Agent tool, setting `subagent_type` to the maker's plugin-qualified name (Claude Code registers this plugin's agents under the `sensei:` prefix — the bare name from the agent's own frontmatter is not a valid `subagent_type` value) and the task/prompt to your minimal, concrete brief:
 
-- `subagent_type: mermaid-maker`, prompt: `<your minimal, concrete brief>`
-- `subagent_type: svg-maker`, prompt: `<your minimal, concrete brief>`
+- `subagent_type: sensei:mermaid-maker`, prompt: `<your minimal, concrete brief>`
+- `subagent_type: sensei:svg-maker`, prompt: `<your minimal, concrete brief>`
 
 The maker renders through this plugin's bundled `scripts/render-mermaid.sh` / `scripts/render-svg.sh` and `scripts/publish.sh`, using its own `Read`/`Write`/`Edit`/`Bash` tools — it authors the source, renders it to a PNG, **looks at the PNG and iterates until it is correct and clean**, publishes it into the vault with a unique filename, and returns:
 
