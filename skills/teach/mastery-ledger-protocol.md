@@ -2,6 +2,8 @@
 
 The mastery ledger (`scripts/mastery.mjs`, backed by `<CLAUDE_CONFIG_DIR>/sensei/mastery.json`) is how `teach` remembers what a learner already knows across sessions. This file is the single source of truth for every ledger interaction — read the section for what you're doing right now and follow it exactly.
 
+**If a `mastery.mjs` command fails with `Cannot find module`,** `${CLAUDE_PLUGIN_ROOT}` didn't expand in that particular `Bash` call — rare, but don't give up on the ledger over it. You already know where this file lives, because you just read it: its path is `<plugin-root>/skills/teach/mastery-ledger-protocol.md`. Strip `/skills/teach/mastery-ledger-protocol.md` off the end of that path to get `<plugin-root>`, then retry the exact same command with that literal absolute path in place of `${CLAUDE_PLUGIN_ROOT}`.
+
 ## Section A — Resolve the topic & look up prior mastery
 
 Read this once, at the very start of Phase 1a, before probing.
