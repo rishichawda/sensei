@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { slugify, getTopic, recordNode, listTopics, emptyLedger, readLedger, writeLedger, ledgerPath } from "./mastery.mjs";
@@ -78,6 +78,43 @@ test("recordNode overwrites an existing node's status without disturbing sibling
   assert.equal(after.topics.networking.packets.status, "passed");
   assert.equal(after.topics.networking.tcp.status, "seen", "sibling node status should remain unchanged");
   assert.equal(after.topics.networking.tcp.lastTaughtAt, "2026-01-01T00:00:00.000Z", "sibling node lastTaughtAt should remain unchanged");
+});
+
+test("recordNode is a no-op (returns the exact same ledger reference) when writing 'seen' over an existing 'passed' record", () => {
+  const ledger = {
+    version: 1,
+    topics: {
+      networking: {
+        packets: { status: "passed", lastTaughtAt: "2026-01-01T00:00:00.000Z" },
+      },
+    },
+  };
+  const result = recordNode(ledger, "networking", "packets", "seen");
+  assert.equal(result, ledger, "recordNode should return the exact same ledger reference on a seen-over-existing no-op");
+  assert.equal(ledger.topics.networking.packets.status, "passed", "existing passed status must not be disturbed");
+  assert.equal(ledger.topics.networking.packets.lastTaughtAt, "2026-01-01T00:00:00.000Z", "lastTaughtAt must not be bumped on a no-op");
+});
+
+test("recordNode still overwrites when a real quiz-check result (passed) is written over an existing 'seen' record", () => {
+  const ledger = {
+    version: 1,
+    topics: {
+      networking: {
+        packets: { status: "seen", lastTaughtAt: "2026-01-01T00:00:00.000Z" },
+      },
+    },
+  };
+  const result = recordNode(ledger, "networking", "packets", "passed");
+  assert.notEqual(result, ledger, "passed writes must not be a no-op, even over a seen record");
+  assert.equal(result.topics.networking.packets.status, "passed");
+});
+
+test("recordNode still creates a new record when writing 'seen' for a node with no prior record", () => {
+  const ledger = { version: 1, topics: { networking: {} } };
+  const result = recordNode(ledger, "networking", "packets", "seen");
+  assert.notEqual(result, ledger, "seen writes on a genuinely new node must not be a no-op");
+  assert.equal(result.topics.networking.packets.status, "seen");
+  assert.equal(typeof result.topics.networking.packets.lastTaughtAt, "string");
 });
 
 test("listTopics returns an empty array for an empty ledger", () => {
@@ -212,6 +249,29 @@ test("CLI topics on an empty ledger prints an empty array", () => {
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
   const output = execFileSync("node", [SCRIPT, "topics"], { env }).toString().trim();
   assert.equal(output, "[]");
+});
+
+test("CLI record with 'seen' over an existing 'passed' node prints 'unchanged' and does not touch the ledger file", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  execFileSync("node", [SCRIPT, "record", "Networking", "Packets", "passed"], { env });
+  let before;
+  withConfigDir(configDir, () => {
+    before = readFileSync(ledgerPath(), "utf8");
+  });
+
+  const output = execFileSync("node", [SCRIPT, "record", "Networking", "Packets", "seen"], { env }).toString();
+  assert.match(output, /unchanged: networking packets already passed/);
+  assert.doesNotMatch(output, /recorded:/);
+
+  let after;
+  withConfigDir(configDir, () => {
+    after = readFileSync(ledgerPath(), "utf8");
+  });
+  assert.equal(after, before, "ledger file on disk must be byte-identical after a no-op seen write");
+
+  const parsed = JSON.parse(after);
+  assert.equal(parsed.topics.networking.packets.status, "passed");
 });
 
 test("CLI topics lists every recorded topic slug alphabetically", () => {

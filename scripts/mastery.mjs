@@ -54,6 +54,8 @@ export function listTopics(ledger) {
 }
 
 export function recordNode(ledger, topicSlug, nodeId, status) {
+  const existing = (ledger.topics[topicSlug] || {})[nodeId];
+  if (status === "seen" && existing) return ledger;
   const topic = { ...(ledger.topics[topicSlug] || {}) };
   topic[nodeId] = { status, lastTaughtAt: new Date().toISOString() };
   return { ...ledger, topics: { ...ledger.topics, [topicSlug]: topic } };
@@ -89,7 +91,13 @@ function main() {
     }
     const topicSlug = slugify(topicArg);
     const nodeSlug = slugify(nodeIdArg);
-    const updated = recordNode(readLedger(), topicSlug, nodeSlug, statusArg);
+    const ledger = readLedger();
+    const existingStatus = (getTopic(ledger, topicSlug)[nodeSlug] || {}).status;
+    const updated = recordNode(ledger, topicSlug, nodeSlug, statusArg);
+    if (updated === ledger) {
+      console.log(`unchanged: ${topicSlug} ${nodeSlug} already ${existingStatus}`);
+      return;
+    }
     writeLedger(updated);
     console.log(`recorded: ${topicSlug} ${nodeSlug} -> ${statusArg}`);
     return;
