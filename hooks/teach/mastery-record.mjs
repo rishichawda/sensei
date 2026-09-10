@@ -63,6 +63,13 @@ export function applyTeachEvent(ledger, event, answerText, optionLabels, now = n
   return { ledger: next };
 }
 
+const DEBUG_FIELD_MAX_CHARS = 150;
+
+export function truncate(text, max = DEBUG_FIELD_MAX_CHARS) {
+  if (typeof text !== "string") return undefined;
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 function debugLogPath() {
   const configRoot = process.env.CLAUDE_CONFIG_DIR || resolve(process.env.HOME, ".claude");
   return resolve(configRoot, "sensei", "mastery-hook-debug.log");
@@ -93,18 +100,27 @@ async function main() {
 
   const sourceRaw = payload.tool_input?.metadata?.source;
   const event = parseTeachEvent(sourceRaw);
-  appendDebugLine({ timestamp: new Date().toISOString(), tagged: Boolean(event), topic: event?.topic, node: event?.node });
-  if (!event) return;
-
   const questions = Array.isArray(payload.tool_input?.questions) ? payload.tool_input.questions : [];
   const question = questions[0];
+
+  appendDebugLine({
+    timestamp: new Date().toISOString(),
+    tagged: Boolean(event),
+    topic: event?.topic,
+    node: event?.node,
+    question: truncate(question?.question),
+    sourceRaw: truncate(sourceRaw),
+  });
+  if (!event) return;
   if (!question) return;
   const answerText = payload.tool_response?.answers?.[question.question];
   const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o.label) : [];
 
   const ledger = readLedger();
   const { ledger: updated, diagnostic } = applyTeachEvent(ledger, event, answerText, optionLabels, new Date(), question.question);
-  if (diagnostic) appendDebugLine({ timestamp: new Date().toISOString(), diagnostic, topic: event.topic, node: event.node });
+  if (diagnostic) {
+    appendDebugLine({ timestamp: new Date().toISOString(), diagnostic, topic: event.topic, node: event.node, question: truncate(question.question) });
+  }
   if (updated !== ledger) writeLedger(updated);
 }
 

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync as readFileSyncNode } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseTeachEvent, gradeAnswer, applyTeachEvent, APPROVAL_LABEL } from "./mastery-record.mjs";
+import { parseTeachEvent, gradeAnswer, applyTeachEvent, APPROVAL_LABEL, truncate } from "./mastery-record.mjs";
 import { emptyLedger, getSession, getTopic, touchSession, setSessionPlan } from "../../scripts/mastery.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./mastery-record.mjs", import.meta.url));
@@ -29,6 +29,21 @@ test("parseTeachEvent returns null for valid JSON that isn't namespaced to sense
 test("parseTeachEvent returns the parsed object for a correctly namespaced event", () => {
   const event = { app: "sensei-teach", v: 1, kind: "node", topic: "javascript", node: "dynamic-typing", recordAs: "seen" };
   assert.deepEqual(parseTeachEvent(JSON.stringify(event)), event);
+});
+
+test("truncate returns a short string unchanged", () => {
+  assert.equal(truncate("short"), "short");
+});
+
+test("truncate cuts a long string and marks it with an ellipsis", () => {
+  const long = "x".repeat(200);
+  const result = truncate(long, 150);
+  assert.equal(result.length, 151);
+  assert.ok(result.endsWith("…"));
+});
+
+test("truncate returns undefined for non-string input", () => {
+  assert.equal(truncate(undefined), undefined);
 });
 
 test("gradeAnswer returns passed when the answer literally matches correct", () => {
@@ -162,4 +177,40 @@ test("main() writes a real 'seen' record end-to-end for a correctly teach-tagged
   });
   const ledger = JSON.parse(readFileSyncNode(join(configDir, "sensei", "mastery.json"), "utf8"));
   assert.equal(ledger.topics.javascript["dynamic-typing"].status, "seen");
+});
+
+test("main() logs the question text for an untagged call, so a 'tagged:false' line is actually diagnostic", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "What does $? mean?", options: [{ label: "A" }] }], metadata: {} },
+      tool_response: { answers: { "What does $? mean?": "A" } },
+    }),
+    env,
+  });
+  const lines = readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").trim().split("\n");
+  const entry = JSON.parse(lines[lines.length - 1]);
+  assert.equal(entry.tagged, false);
+  assert.equal(entry.question, "What does $? mean?");
+});
+
+test("main() logs the raw (truncated) metadata.source when present but not teach-tagged, so a near-miss is visible", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Pick one", options: [{ label: "A" }] }], metadata: { source: "remember" } },
+      tool_response: { answers: { "Pick one": "A" } },
+    }),
+    env,
+  });
+  const lines = readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").trim().split("\n");
+  const entry = JSON.parse(lines[lines.length - 1]);
+  assert.equal(entry.tagged, false);
+  assert.equal(entry.sourceRaw, "remember");
 });
