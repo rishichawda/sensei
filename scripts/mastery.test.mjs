@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import { slugify, getTopic, recordNode, listTopics, emptyLedger, readLedger, writeLedger, ledgerPath, getSession, touchSession, setSessionGoal, setSessionPlan, advanceSession } from "./mastery.mjs";
+import { slugify, getTopic, recordNode, listTopics, emptyLedger, readLedger, writeLedger, ledgerPath, getSession, touchSession, setSessionGoal, setSessionPlan, advanceSession, addProbe } from "./mastery.mjs";
 
 const SCRIPT = new URL("./mastery.mjs", import.meta.url).pathname;
 
@@ -143,8 +143,22 @@ test("listTopics returns all topic slugs sorted alphabetically", () => {
       "powershell-scripting": { foo: { status: "seen", lastTaughtAt: "2026-01-01T00:00:00.000Z" } },
       networking: { packets: { status: "passed", lastTaughtAt: "2026-01-01T00:00:00.000Z" } },
     },
+    sessions: {},
   };
   assert.deepEqual(listTopics(ledger), ["networking", "powershell-scripting"]);
+});
+
+test("listTopics includes a topic that has a session row but no graded node yet", () => {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const ledger = touchSession(emptyLedger(), "powershell-scripting", now);
+  assert.deepEqual(listTopics(ledger), ["powershell-scripting"]);
+});
+
+test("listTopics dedupes a topic that has both a session row and a graded node", () => {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  let ledger = touchSession(emptyLedger(), "javascript", now);
+  ledger = recordNode(ledger, "javascript", "closures", "passed");
+  assert.deepEqual(listTopics(ledger), ["javascript"]);
 });
 
 test("touchSession creates a fresh intake row when none exists", () => {
@@ -166,6 +180,34 @@ test("touchSession does not disturb an existing session for a sibling topic", ()
   ledger = touchSession(ledger, "rust", new Date("2026-02-01T00:00:00.000Z"));
   assert.ok(ledger.sessions.javascript, "javascript session must survive touching a different topic");
   assert.ok(ledger.sessions.rust, "rust session must be created");
+});
+
+test("addProbe creates the session row from the very first probe, before any node exists", () => {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const ledger = addProbe(emptyLedger(), "powershell-scripting", { question: "What's a cmdlet?", answer: "Not sure" }, now);
+  assert.equal(ledger.sessions["powershell-scripting"].status, "intake");
+  assert.deepEqual(ledger.sessions["powershell-scripting"].probes, [{ question: "What's a cmdlet?", answer: "Not sure", at: "2026-01-01T00:00:00.000Z" }]);
+});
+
+test("addProbe appends to an existing probe log without disturbing goal/dependencyMap", () => {
+  let ledger = setSessionGoal(emptyLedger(), "javascript", "learn closures", new Date("2026-01-01T00:00:00.000Z"));
+  ledger = addProbe(ledger, "javascript", { question: "Q1", answer: "A1" }, new Date("2026-01-02T00:00:00.000Z"));
+  ledger = addProbe(ledger, "javascript", { question: "Q2", answer: "A2" }, new Date("2026-01-03T00:00:00.000Z"));
+  assert.equal(ledger.sessions.javascript.goal, "learn closures");
+  assert.deepEqual(ledger.sessions.javascript.probes, [
+    { question: "Q1", answer: "A1", at: "2026-01-02T00:00:00.000Z" },
+    { question: "Q2", answer: "A2", at: "2026-01-03T00:00:00.000Z" },
+  ]);
+});
+
+test("addProbe caps the log at the most recent 50 entries", () => {
+  let ledger = emptyLedger();
+  for (let i = 0; i < 55; i++) {
+    ledger = addProbe(ledger, "javascript", { question: `Q${i}`, answer: "A" }, new Date("2026-01-01T00:00:00.000Z"));
+  }
+  assert.equal(ledger.sessions.javascript.probes.length, 50);
+  assert.equal(ledger.sessions.javascript.probes[0].question, "Q5");
+  assert.equal(ledger.sessions.javascript.probes[49].question, "Q54");
 });
 
 test("setSessionGoal creates the session row if missing and sets the goal", () => {

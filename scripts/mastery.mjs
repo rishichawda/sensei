@@ -97,7 +97,7 @@ export function advanceSession(ledger, topicSlug, nodeId, status, now = new Date
 }
 
 export function listTopics(ledger) {
-  return Object.keys(ledger.topics).sort();
+  return [...new Set([...Object.keys(ledger.topics), ...Object.keys(ledger.sessions)])].sort();
 }
 
 export function recordNode(ledger, topicSlug, nodeId, status) {
@@ -106,6 +106,16 @@ export function recordNode(ledger, topicSlug, nodeId, status) {
   const topic = { ...(ledger.topics[topicSlug] || {}) };
   topic[nodeId] = { status, lastTaughtAt: new Date().toISOString() };
   return { ...ledger, topics: { ...ledger.topics, [topicSlug]: topic } };
+}
+
+const PROBE_LOG_MAX = 50;
+
+export function addProbe(ledger, topicSlug, entry, now = new Date()) {
+  const base = touchSession(ledger, topicSlug, now);
+  const session = base.sessions[topicSlug];
+  const probes = Array.isArray(session.probes) ? session.probes : [];
+  const updated = { ...session, probes: [...probes, { ...entry, at: now.toISOString() }].slice(-PROBE_LOG_MAX), updatedAt: now.toISOString() };
+  return { ...base, sessions: { ...base.sessions, [topicSlug]: updated } };
 }
 
 function main() {
