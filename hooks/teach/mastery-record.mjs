@@ -1,4 +1,4 @@
-import { readLedger, writeLedger, recordNode, touchSession, setSessionGoal, setSessionPlan, advanceSession } from "../../scripts/mastery.mjs";
+import { readLedger, writeLedger, recordNode, touchSession, setSessionGoal, setSessionPlan, advanceSession, addProbe, slugify } from "../../scripts/mastery.mjs";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
@@ -22,12 +22,13 @@ export function gradeAnswer(event, answerText, optionLabels) {
   return answerText === event.correct ? "passed" : "failed";
 }
 
-export function applyTeachEvent(ledger, event, answerText, optionLabels, now = new Date()) {
-  let next = touchSession(ledger, event.topic, now);
+export function applyTeachEvent(ledger, event, answerText, optionLabels, now = new Date(), questionText = null) {
+  const topic = slugify(event.topic);
+  let next = touchSession(ledger, topic, now);
 
   if (event.kind === "node") {
     if (event.recordAs === "seen") {
-      next = recordNode(next, event.topic, event.node, "seen");
+      next = recordNode(next, topic, event.node, "seen");
       return { ledger: next };
     }
     if (event.recordAs === "graded") {
@@ -35,21 +36,26 @@ export function applyTeachEvent(ledger, event, answerText, optionLabels, now = n
       if (grade === "invalid") {
         return { ledger: next, diagnostic: `teach: correct value "${event.correct}" does not match any option label for node "${event.node}"` };
       }
-      next = recordNode(next, event.topic, event.node, grade);
-      next = advanceSession(next, event.topic, event.node, grade, now);
+      next = recordNode(next, topic, event.node, grade);
+      next = advanceSession(next, topic, event.node, grade, now);
       return { ledger: next };
     }
     return { ledger: next };
   }
 
+  if (event.kind === "probe") {
+    next = addProbe(next, topic, { question: questionText, answer: answerText }, now);
+    return { ledger: next };
+  }
+
   if (event.kind === "goal") {
-    next = setSessionGoal(next, event.topic, event.goal, now);
+    next = setSessionGoal(next, topic, event.goal, now);
     return { ledger: next };
   }
 
   if (event.kind === "plan") {
     if (answerText === APPROVAL_LABEL) {
-      next = setSessionPlan(next, event.topic, event.plan, now);
+      next = setSessionPlan(next, topic, event.plan, now);
     }
     return { ledger: next };
   }
@@ -97,7 +103,7 @@ async function main() {
   const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o.label) : [];
 
   const ledger = readLedger();
-  const { ledger: updated, diagnostic } = applyTeachEvent(ledger, event, answerText, optionLabels, new Date());
+  const { ledger: updated, diagnostic } = applyTeachEvent(ledger, event, answerText, optionLabels, new Date(), question.question);
   if (diagnostic) appendDebugLine({ timestamp: new Date().toISOString(), diagnostic, topic: event.topic, node: event.node });
   if (updated !== ledger) writeLedger(updated);
 }

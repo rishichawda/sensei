@@ -85,6 +85,22 @@ test("applyTeachEvent returns a diagnostic and does not write a bogus failed whe
   assert.equal(getTopic(result.ledger, "javascript")["dynamic-typing"], undefined, "no bogus failed/passed status must be written");
 });
 
+test("applyTeachEvent logs a Phase 1a probe and creates the session row, with no node ID required", () => {
+  const event = { app: "sensei-teach", v: 1, kind: "probe", topic: "powershell-scripting" };
+  const { ledger, diagnostic } = applyTeachEvent(emptyLedger(), event, "Not sure", ["A", "B", "I don't know"], new Date("2026-01-01T00:00:00.000Z"), "What's a cmdlet?");
+  assert.equal(diagnostic, undefined);
+  const session = getSession(ledger, "powershell-scripting");
+  assert.equal(session.status, "intake");
+  assert.deepEqual(session.probes, [{ question: "What's a cmdlet?", answer: "Not sure", at: "2026-01-01T00:00:00.000Z" }]);
+});
+
+test("applyTeachEvent slugifies event.topic before touching the ledger, matching the CLI's get/get-session contract", () => {
+  const event = { app: "sensei-teach", v: 1, kind: "goal", topic: "PowerShell Scripting", goal: "learn scripting" };
+  const { ledger } = applyTeachEvent(emptyLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
+  assert.ok(getSession(ledger, "powershell-scripting"), "session must be keyed by the slugified topic");
+  assert.equal(getSession(ledger, "PowerShell Scripting"), null, "an unslugified lookup must not accidentally match");
+});
+
 test("applyTeachEvent sets the goal for a 'goal' event", () => {
   const event = { app: "sensei-teach", v: 1, kind: "goal", topic: "javascript", goal: "understand fundamentals" };
   const { ledger } = applyTeachEvent(emptyLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
