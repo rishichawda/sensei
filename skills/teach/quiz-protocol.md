@@ -16,7 +16,20 @@ There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extensio
    `AskUserQuestion` accepts at most 4 options per question, and "I don't know" (step 3 below) always occupies one of them — so build **at most 3 real graded options** (fewer if you want more headroom).
 3. **Always add one more option yourself**, worded exactly `"I don't know"`, appended after your real options. There is no automatic "I don't know" option here — you must add it explicitly every time.
 4. **Call `AskUserQuestion`** with your question, the options (including "I don't know"), and `multiSelect: true` only if more than one option is genuinely correct.
-4a. **If this question is running inside a `teach` session, attach the ledger metadata to the same `AskUserQuestion` call** — not a follow-up call. `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "node", topic: "<topic resolved in mastery-ledger-protocol.md Section A>", node: "<this node's ID>", recordAs: "graded", correct: "<the exact label text of the correct option, byte-for-byte>"})}`. Two hard constraints this depends on:
+4a. **If the question needs to show code, embed it as a real Markdown fenced code block with actual line breaks — never the two literal characters `\` and `n` typed as text.** Confirmed failure mode (not hypothetical): a live session asked several code-comprehension questions whose `question` text contained literal backslash-n sequences instead of real newlines — the code rendered as one unreadable run-on line or didn't render at all, and the user said so directly ("I don't see a code?", "the code is not formatted correctly. it is unreadable"). A control test confirmed the tool itself renders multi-line fenced code correctly when given genuine newline characters — this is a construction mistake, not a tool limitation, so get the construction right:
+   ````
+   What does calling `add(3, 2)` print?
+
+   ```javascript
+   function add(a, b) {
+     console.log(a + b);
+   }
+
+   add(3, 2);
+   ```
+   ````
+   That's a real triple-backtick fence with a real blank line before it and a real newline after every statement — not a description of one. If you're about to write `\n` as two characters inside the question text, stop: you want an actual line break there instead.
+4b. **If this question is running inside a `teach` session, attach the ledger metadata to the same `AskUserQuestion` call** — not a follow-up call. `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "node", topic: "<topic resolved in mastery-ledger-protocol.md Section A>", node: "<this node's ID>", recordAs: "graded", correct: "<the exact label text of the correct option, byte-for-byte>"})}`. Two hard constraints this depends on:
    - **Single-select only** (`multiSelect: false` or omitted). Multi-select answers collapse into a comma-joined string that can't be graded reliably — if a concept genuinely needs more than one correct answer, split it into separate single-select questions rather than one multi-select call.
    - **One teach-graded node per `AskUserQuestion` call.** Never batch more than one teach-graded node's question into the same multi-question call — `metadata`/`answers` both key ambiguously across more than one node per call.
 5. **When the tool returns the user's selection(s):**
