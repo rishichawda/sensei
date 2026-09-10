@@ -2,6 +2,8 @@
 
 There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extension point for outside code to add grading logic, and the harness strips it from every subagent's tool set entirely — even if declared in frontmatter `tools:` — because a subagent must complete autonomously without blocking on user interaction. So grading is YOUR job, done in plain conversation, in the main session. Follow this protocol exactly every time you run a graded question.
 
+**Step 4b's metadata tag is enforced, not just requested.** `hooks/teach/enforce-quiz-tag.mjs` denies any `AskUserQuestion` call that carries the mandatory `"I don't know"` option (step 3, below) without a valid `metadata.source` tag, once a teach session is active. If a call gets denied for this, the reason names exactly what's missing — attach it and retry the same call unchanged.
+
 ## Running a quiz question
 
 1. **Decide the correct answer and write the explanation BEFORE calling the tool.** Hold both in your own working context — never put the correct answer in an option's label or description text (that would leak it visually before the user answers).

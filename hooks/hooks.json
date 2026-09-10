@@ -12,12 +12,20 @@
       }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/md-log/stop.mjs\"" }] }
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/md-log/stop.mjs\"" },
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/teach/clear-active.mjs\"" }
+        ]
+      }
     ],
     "PreToolUse": [
       {
         "matcher": "AskUserQuestion",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/md-log/ask-user-question.mjs\"" }]
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/md-log/ask-user-question.mjs\"" },
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/teach/enforce-quiz-tag.mjs\"" }
+        ]
       }
     ],
     "PostToolUse": [
@@ -27,6 +35,10 @@
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/md-log/ask-user-question.mjs\"" },
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/teach/mastery-record.mjs\"" }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/teach/mark-active.mjs\"" }]
       }
     ],
     "PostToolUseFailure": [
