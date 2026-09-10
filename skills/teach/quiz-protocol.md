@@ -29,7 +29,11 @@ There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extensio
    ```
    ````
    That's a real triple-backtick fence with a real blank line before it and a real newline after every statement — not a description of one. If you're about to write `\n` as two characters inside the question text, stop: you want an actual line break there instead.
-4b. **If this question is running inside a `teach` session, attach the ledger metadata to the same `AskUserQuestion` call** — not a follow-up call. `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "node", topic: "<topic resolved in mastery-ledger-protocol.md Section A>", node: "<this node's ID>", recordAs: "graded", correct: "<the exact label text of the correct option, byte-for-byte>"})}`. Two hard constraints this depends on:
+4b. **If this question is running inside a `teach` session, attach the ledger metadata to the same `AskUserQuestion` call** — not a follow-up call. Which shape depends on whether a node ID exists yet:
+   - **Phase 1a probing (no dependency map yet, so no node ID exists):** `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "probe", topic: "<topic resolved in mastery-ledger-protocol.md Section A>"})}`. This is every probe question, without exception — it's what makes the session discoverable and resumable even if nothing gets past Phase 1a. No `node`/`correct`/`recordAs` — there's nothing to grade into a ledger coordinate yet.
+   - **Phase 3 quiz-check (the node's ID was assigned back in Phase 2):** `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "node", topic: "<topic>", node: "<this node's ID>", recordAs: "graded", correct: "<the exact label text of the correct option, byte-for-byte>"})}`.
+
+   Two hard constraints both shapes depend on:
    - **Single-select only** (`multiSelect: false` or omitted). Multi-select answers collapse into a comma-joined string that can't be graded reliably — if a concept genuinely needs more than one correct answer, split it into separate single-select questions rather than one multi-select call.
    - **One teach-graded node per `AskUserQuestion` call.** Never batch more than one teach-graded node's question into the same multi-question call — `metadata`/`answers` both key ambiguously across more than one node per call.
 5. **When the tool returns the user's selection(s):**
