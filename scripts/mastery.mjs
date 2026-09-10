@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const LEDGER_VERSION = 1;
+const PROBE_LOG_MAX = 50;
 
 export function slugify(text) {
   const cleaned = String(text)
@@ -11,73 +12,92 @@ export function slugify(text) {
   return cleaned || "topic";
 }
 
-export function ledgerPath() {
+export function ledgersDir() {
   const configRoot = process.env.CLAUDE_CONFIG_DIR || resolve(process.env.HOME, ".claude");
-  return resolve(configRoot, "sensei", "mastery.json");
+  return resolve(configRoot, "sensei", "ledgers");
 }
 
-export function emptyLedger() {
-  return { version: LEDGER_VERSION, topics: {}, sessions: {} };
+export function topicLedgerPath(topicSlug) {
+  return resolve(ledgersDir(), `${topicSlug}.json`);
 }
 
-export function readLedger() {
-  const path = ledgerPath();
-  if (!existsSync(path)) return emptyLedger();
+export function emptyTopicLedger() {
+  return { version: LEDGER_VERSION, nodes: {}, session: null };
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+// One file per topic: different topics never share a read-modify-write
+// window, so a hook writing "javascript" can never silently clobber a
+// concurrent write to "powershell-scripting" the way a single shared
+// mastery.json could.
+export function readTopicLedger(topicSlug) {
+  const path = topicLedgerPath(topicSlug);
+  if (!existsSync(path)) return emptyTopicLedger();
   let parsed;
   try {
     parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (err) {
     console.error(`mastery.mjs: warning: could not parse ledger at ${path} (starting fresh): ${err.message}`);
-    return emptyLedger();
+    return emptyTopicLedger();
   }
-  if (!parsed || parsed.topics === null || typeof parsed.topics !== "object") {
+  if (!isPlainObject(parsed)) {
     console.error(`mastery.mjs: warning: ledger at ${path} has an unrecognized shape (starting fresh)`);
-    return emptyLedger();
+    return emptyTopicLedger();
   }
-  const sessionsValid = parsed.sessions && typeof parsed.sessions === "object" && !Array.isArray(parsed.sessions);
-  return { ...parsed, sessions: sessionsValid ? parsed.sessions : {} };
+  const nodes = isPlainObject(parsed.nodes) ? parsed.nodes : {};
+  const session = parsed.session === null || isPlainObject(parsed.session) ? parsed.session : null;
+  return { ...parsed, nodes, session };
 }
 
-export function writeLedger(ledger) {
-  const path = ledgerPath();
+export function writeTopicLedger(topicSlug, topicLedger) {
+  const path = topicLedgerPath(topicSlug);
   mkdirSync(dirname(path), { recursive: true });
   const tmpPath = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmpPath, JSON.stringify(ledger), "utf8");
+  writeFileSync(tmpPath, JSON.stringify(topicLedger), "utf8");
   renameSync(tmpPath, path);
 }
 
-export function getTopic(ledger, topicSlug) {
-  return ledger.topics[topicSlug] || {};
+export function listTopics() {
+  const dir = ledgersDir();
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.slice(0, -".json".length))
+    .sort();
 }
 
-export function getSession(ledger, topicSlug) {
-  return ledger.sessions[topicSlug] || null;
+export function getTopic(topicLedger) {
+  return topicLedger.nodes;
 }
 
-export function touchSession(ledger, topicSlug, now = new Date()) {
-  if (ledger.sessions[topicSlug]) return ledger;
-  const row = { goal: null, dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: now.toISOString() };
-  return { ...ledger, sessions: { ...ledger.sessions, [topicSlug]: row } };
+export function getSession(topicLedger) {
+  return topicLedger.session || null;
 }
 
-export function setSessionGoal(ledger, topicSlug, goal, now = new Date()) {
-  const base = touchSession(ledger, topicSlug, now);
-  const session = base.sessions[topicSlug];
-  const updated = { ...session, goal, updatedAt: now.toISOString() };
-  return { ...base, sessions: { ...base.sessions, [topicSlug]: updated } };
+export function touchSession(topicLedger, now = new Date()) {
+  if (topicLedger.session) return topicLedger;
+  const session = { goal: null, dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: now.toISOString() };
+  return { ...topicLedger, session };
 }
 
-export function setSessionPlan(ledger, topicSlug, plan, now = new Date()) {
-  const base = touchSession(ledger, topicSlug, now);
-  const session = base.sessions[topicSlug];
+export function setSessionGoal(topicLedger, goal, now = new Date()) {
+  const base = touchSession(topicLedger, now);
+  return { ...base, session: { ...base.session, goal, updatedAt: now.toISOString() } };
+}
+
+export function setSessionPlan(topicLedger, plan, now = new Date()) {
+  const base = touchSession(topicLedger, now);
   const nodes = Array.isArray(plan?.nodes) ? plan.nodes : [];
-  const updated = { ...session, dependencyMap: plan, nextNodeId: nodes[0] ?? null, status: "planned", updatedAt: now.toISOString() };
-  return { ...base, sessions: { ...base.sessions, [topicSlug]: updated } };
+  const session = { ...base.session, dependencyMap: plan, nextNodeId: nodes[0] ?? null, status: "planned", updatedAt: now.toISOString() };
+  return { ...base, session };
 }
 
-export function advanceSession(ledger, topicSlug, nodeId, status, now = new Date()) {
-  const session = getSession(ledger, topicSlug);
-  if (!session || !session.dependencyMap) return ledger;
+export function advanceSession(topicLedger, nodeId, status, now = new Date()) {
+  const session = getSession(topicLedger);
+  if (!session || !session.dependencyMap) return topicLedger;
   let nextNodeId = session.nextNodeId;
   let newStatus = session.status === "planned" ? "in-progress" : session.status;
   if (status === "passed" && nodeId === session.nextNodeId) {
@@ -91,31 +111,22 @@ export function advanceSession(ledger, topicSlug, nodeId, status, now = new Date
       newStatus = "complete";
     }
   }
-  if (newStatus === session.status && nextNodeId === session.nextNodeId) return ledger;
-  const updated = { ...session, status: newStatus, nextNodeId, updatedAt: now.toISOString() };
-  return { ...ledger, sessions: { ...ledger.sessions, [topicSlug]: updated } };
+  if (newStatus === session.status && nextNodeId === session.nextNodeId) return topicLedger;
+  return { ...topicLedger, session: { ...session, status: newStatus, nextNodeId, updatedAt: now.toISOString() } };
 }
 
-export function listTopics(ledger) {
-  return [...new Set([...Object.keys(ledger.topics), ...Object.keys(ledger.sessions)])].sort();
+export function recordNode(topicLedger, nodeId, status) {
+  const existing = topicLedger.nodes[nodeId];
+  if (status === "seen" && existing) return topicLedger;
+  const nodes = { ...topicLedger.nodes, [nodeId]: { status, lastTaughtAt: new Date().toISOString() } };
+  return { ...topicLedger, nodes };
 }
 
-export function recordNode(ledger, topicSlug, nodeId, status) {
-  const existing = (ledger.topics[topicSlug] || {})[nodeId];
-  if (status === "seen" && existing) return ledger;
-  const topic = { ...(ledger.topics[topicSlug] || {}) };
-  topic[nodeId] = { status, lastTaughtAt: new Date().toISOString() };
-  return { ...ledger, topics: { ...ledger.topics, [topicSlug]: topic } };
-}
-
-const PROBE_LOG_MAX = 50;
-
-export function addProbe(ledger, topicSlug, entry, now = new Date()) {
-  const base = touchSession(ledger, topicSlug, now);
-  const session = base.sessions[topicSlug];
-  const probes = Array.isArray(session.probes) ? session.probes : [];
-  const updated = { ...session, probes: [...probes, { ...entry, at: now.toISOString() }].slice(-PROBE_LOG_MAX), updatedAt: now.toISOString() };
-  return { ...base, sessions: { ...base.sessions, [topicSlug]: updated } };
+export function addProbe(topicLedger, entry, now = new Date()) {
+  const base = touchSession(topicLedger, now);
+  const probes = Array.isArray(base.session.probes) ? base.session.probes : [];
+  const session = { ...base.session, probes: [...probes, { ...entry, at: now.toISOString() }].slice(-PROBE_LOG_MAX), updatedAt: now.toISOString() };
+  return { ...base, session };
 }
 
 function main() {
@@ -127,8 +138,7 @@ function main() {
       console.error("Usage: mastery.mjs get <topic>");
       process.exit(1);
     }
-    const ledger = readLedger();
-    console.log(JSON.stringify(getTopic(ledger, slugify(topicArg))));
+    console.log(JSON.stringify(getTopic(readTopicLedger(slugify(topicArg)))));
     return;
   }
 
@@ -137,13 +147,12 @@ function main() {
       console.error("Usage: mastery.mjs get-session <topic>");
       process.exit(1);
     }
-    const ledger = readLedger();
-    console.log(JSON.stringify(getSession(ledger, slugify(topicArg))));
+    console.log(JSON.stringify(getSession(readTopicLedger(slugify(topicArg)))));
     return;
   }
 
   if (command === "topics") {
-    console.log(JSON.stringify(listTopics(readLedger())));
+    console.log(JSON.stringify(listTopics()));
     return;
   }
 
@@ -158,14 +167,14 @@ function main() {
     }
     const topicSlug = slugify(topicArg);
     const nodeSlug = slugify(nodeIdArg);
-    const ledger = readLedger();
-    const existingStatus = (getTopic(ledger, topicSlug)[nodeSlug] || {}).status;
-    const updated = recordNode(ledger, topicSlug, nodeSlug, statusArg);
-    if (updated === ledger) {
+    const topicLedger = readTopicLedger(topicSlug);
+    const existingStatus = (getTopic(topicLedger)[nodeSlug] || {}).status;
+    const updated = recordNode(topicLedger, nodeSlug, statusArg);
+    if (updated === topicLedger) {
       console.log(`unchanged: ${topicSlug} ${nodeSlug} already ${existingStatus}`);
       return;
     }
-    writeLedger(updated);
+    writeTopicLedger(topicSlug, updated);
     console.log(`recorded: ${topicSlug} ${nodeSlug} -> ${statusArg}`);
     return;
   }

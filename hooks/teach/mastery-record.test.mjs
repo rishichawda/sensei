@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTeachEvent, gradeAnswer, applyTeachEvent, APPROVAL_LABEL, truncate } from "./mastery-record.mjs";
-import { emptyLedger, getSession, getTopic, touchSession, setSessionPlan } from "../../scripts/mastery.mjs";
+import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath } from "../../scripts/mastery.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./mastery-record.mjs", import.meta.url));
 
@@ -68,68 +68,61 @@ test("gradeAnswer returns invalid when correct doesn't match any real option lab
 
 test("applyTeachEvent records a 'seen' node and touches the session row", () => {
   const event = { app: "sensei-teach", v: 1, kind: "node", topic: "javascript", node: "dynamic-typing", recordAs: "seen" };
-  const { ledger, diagnostic } = applyTeachEvent(emptyLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
+  const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
   assert.equal(diagnostic, undefined);
-  assert.equal(getTopic(ledger, "javascript")["dynamic-typing"].status, "seen");
-  assert.ok(getSession(ledger, "javascript"), "session row must exist after any teach-tagged question");
+  assert.equal(getTopic(ledger)["dynamic-typing"].status, "seen");
+  assert.ok(getSession(ledger), "session row must exist after any teach-tagged question");
 });
 
 test("applyTeachEvent grades a correct answer as passed and advances the session", () => {
   const plan = { nodes: ["dynamic-typing", "closures"], edges: [] };
-  let ledger = setSessionPlan(emptyLedger(), "javascript", plan, new Date("2026-01-01T00:00:00.000Z"));
+  let topicLedger = setSessionPlan(emptyTopicLedger(), plan, new Date("2026-01-01T00:00:00.000Z"));
   const event = { app: "sensei-teach", v: 1, kind: "node", topic: "javascript", node: "dynamic-typing", recordAs: "graded", correct: "Option A" };
-  const result = applyTeachEvent(ledger, event, "Option A", ["Option A", "Option B", "I don't know"], new Date("2026-01-02T00:00:00.000Z"));
-  assert.equal(getTopic(result.ledger, "javascript")["dynamic-typing"].status, "passed");
-  assert.equal(getSession(result.ledger, "javascript").nextNodeId, "closures");
+  const result = applyTeachEvent(topicLedger, event, "Option A", ["Option A", "Option B", "I don't know"], new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(getTopic(result.ledger)["dynamic-typing"].status, "passed");
+  assert.equal(getSession(result.ledger).nextNodeId, "closures");
 });
 
 test("applyTeachEvent grades a wrong answer as failed without advancing the session", () => {
   const plan = { nodes: ["dynamic-typing", "closures"], edges: [] };
-  let ledger = setSessionPlan(emptyLedger(), "javascript", plan, new Date("2026-01-01T00:00:00.000Z"));
+  let topicLedger = setSessionPlan(emptyTopicLedger(), plan, new Date("2026-01-01T00:00:00.000Z"));
   const event = { app: "sensei-teach", v: 1, kind: "node", topic: "javascript", node: "dynamic-typing", recordAs: "graded", correct: "Option A" };
-  const result = applyTeachEvent(ledger, event, "Option B", ["Option A", "Option B", "I don't know"], new Date("2026-01-02T00:00:00.000Z"));
-  assert.equal(getTopic(result.ledger, "javascript")["dynamic-typing"].status, "failed");
-  assert.equal(getSession(result.ledger, "javascript").nextNodeId, "dynamic-typing");
+  const result = applyTeachEvent(topicLedger, event, "Option B", ["Option A", "Option B", "I don't know"], new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(getTopic(result.ledger)["dynamic-typing"].status, "failed");
+  assert.equal(getSession(result.ledger).nextNodeId, "dynamic-typing");
 });
 
 test("applyTeachEvent returns a diagnostic and does not write a bogus failed when correct doesn't match any option", () => {
   const event = { app: "sensei-teach", v: 1, kind: "node", topic: "javascript", node: "dynamic-typing", recordAs: "graded", correct: "Option Z" };
-  const before = touchSession(emptyLedger(), "javascript", new Date("2026-01-01T00:00:00.000Z"));
+  const before = touchSession(emptyTopicLedger(), new Date("2026-01-01T00:00:00.000Z"));
   const result = applyTeachEvent(before, event, "Option A", ["Option A", "Option B"], new Date("2026-01-02T00:00:00.000Z"));
   assert.match(result.diagnostic, /does not match any option/);
-  assert.equal(getTopic(result.ledger, "javascript")["dynamic-typing"], undefined, "no bogus failed/passed status must be written");
+  assert.equal(getTopic(result.ledger)["dynamic-typing"], undefined, "no bogus failed/passed status must be written");
 });
 
 test("applyTeachEvent logs a Phase 1a probe and creates the session row, with no node ID required", () => {
   const event = { app: "sensei-teach", v: 1, kind: "probe", topic: "powershell-scripting" };
-  const { ledger, diagnostic } = applyTeachEvent(emptyLedger(), event, "Not sure", ["A", "B", "I don't know"], new Date("2026-01-01T00:00:00.000Z"), "What's a cmdlet?");
+  const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), event, "Not sure", ["A", "B", "I don't know"], new Date("2026-01-01T00:00:00.000Z"), "What's a cmdlet?");
   assert.equal(diagnostic, undefined);
-  const session = getSession(ledger, "powershell-scripting");
+  const session = getSession(ledger);
   assert.equal(session.status, "intake");
   assert.deepEqual(session.probes, [{ question: "What's a cmdlet?", answer: "Not sure", at: "2026-01-01T00:00:00.000Z" }]);
 });
 
-test("applyTeachEvent slugifies event.topic before touching the ledger, matching the CLI's get/get-session contract", () => {
-  const event = { app: "sensei-teach", v: 1, kind: "goal", topic: "PowerShell Scripting", goal: "learn scripting" };
-  const { ledger } = applyTeachEvent(emptyLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
-  assert.ok(getSession(ledger, "powershell-scripting"), "session must be keyed by the slugified topic");
-  assert.equal(getSession(ledger, "PowerShell Scripting"), null, "an unslugified lookup must not accidentally match");
-});
-
 test("applyTeachEvent sets the goal for a 'goal' event", () => {
   const event = { app: "sensei-teach", v: 1, kind: "goal", topic: "javascript", goal: "understand fundamentals" };
-  const { ledger } = applyTeachEvent(emptyLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
-  assert.equal(getSession(ledger, "javascript").goal, "understand fundamentals");
+  const { ledger } = applyTeachEvent(emptyTopicLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
+  assert.equal(getSession(ledger).goal, "understand fundamentals");
 });
 
 test("applyTeachEvent sets the plan for a 'plan' event only when the answer matches the canonical approval label", () => {
   const plan = { nodes: ["primitives"], edges: [] };
   const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
-  const approved = applyTeachEvent(emptyLedger(), event, APPROVAL_LABEL, [APPROVAL_LABEL, "I have changes"], new Date("2026-01-01T00:00:00.000Z"));
-  assert.equal(approved.ledger.sessions.javascript.status, "planned");
+  const approved = applyTeachEvent(emptyTopicLedger(), event, APPROVAL_LABEL, [APPROVAL_LABEL, "I have changes"], new Date("2026-01-01T00:00:00.000Z"));
+  assert.equal(approved.ledger.session.status, "planned");
 
-  const declined = applyTeachEvent(emptyLedger(), event, "I have changes", [APPROVAL_LABEL, "I have changes"], new Date("2026-01-01T00:00:00.000Z"));
-  assert.equal(declined.ledger.sessions.javascript.status, "intake", "declining approval must not set the plan");
+  const declined = applyTeachEvent(emptyTopicLedger(), event, "I have changes", [APPROVAL_LABEL, "I have changes"], new Date("2026-01-01T00:00:00.000Z"));
+  assert.equal(declined.ledger.session.status, "intake", "declining approval must not set the plan");
 });
 
 test("main() survives unparseable JSON on stdin without crashing", () => {
@@ -147,7 +140,7 @@ test("main() survives a PostToolUse payload for a different tool without crashin
   );
 });
 
-test("main() survives an AskUserQuestion payload with no teach metadata without writing a ledger", () => {
+test("main() survives an AskUserQuestion payload with no teach metadata without writing a ledger file", () => {
   const configDir = freshConfigDir();
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
   execFileSync(process.execPath, [SCRIPT], {
@@ -159,10 +152,10 @@ test("main() survives an AskUserQuestion payload with no teach metadata without 
     }),
     env,
   });
-  assert.equal(existsSync(join(configDir, "sensei", "mastery.json")), false);
+  withEnv(env, () => assert.equal(existsSync(topicLedgerPath("pick-one")), false));
 });
 
-test("main() writes a real 'seen' record end-to-end for a correctly teach-tagged AskUserQuestion payload", () => {
+test("main() writes a real 'seen' record end-to-end for a correctly teach-tagged AskUserQuestion payload, into that topic's own file", () => {
   const configDir = freshConfigDir();
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
   const source = JSON.stringify({ app: "sensei-teach", v: 1, kind: "node", topic: "javascript", node: "dynamic-typing", recordAs: "seen" });
@@ -175,8 +168,42 @@ test("main() writes a real 'seen' record end-to-end for a correctly teach-tagged
     }),
     env,
   });
-  const ledger = JSON.parse(readFileSyncNode(join(configDir, "sensei", "mastery.json"), "utf8"));
-  assert.equal(ledger.topics.javascript["dynamic-typing"].status, "seen");
+  let ledger;
+  withEnv(env, () => {
+    ledger = JSON.parse(readFileSyncNode(topicLedgerPath("javascript"), "utf8"));
+  });
+  assert.equal(ledger.nodes["dynamic-typing"].status, "seen");
+});
+
+test("main() writes each topic to its own file, never touching a sibling topic's file", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const jsSource = JSON.stringify({ app: "sensei-teach", v: 1, kind: "node", topic: "javascript", node: "closures", recordAs: "seen" });
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Q1", options: [{ label: "A" }] }], metadata: { source: jsSource } },
+      tool_response: { answers: { Q1: "A" } },
+    }),
+    env,
+  });
+  const rustSource = JSON.stringify({ app: "sensei-teach", v: 1, kind: "node", topic: "rust", node: "ownership", recordAs: "seen" });
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Q2", options: [{ label: "A" }] }], metadata: { source: rustSource } },
+      tool_response: { answers: { Q2: "A" } },
+    }),
+    env,
+  });
+  withEnv(env, () => {
+    const js = JSON.parse(readFileSyncNode(topicLedgerPath("javascript"), "utf8"));
+    const rust = JSON.parse(readFileSyncNode(topicLedgerPath("rust"), "utf8"));
+    assert.deepEqual(Object.keys(js.nodes), ["closures"]);
+    assert.deepEqual(Object.keys(rust.nodes), ["ownership"]);
+  });
 });
 
 test("main() logs the question text for an untagged call, so a 'tagged:false' line is actually diagnostic", () => {
@@ -214,3 +241,14 @@ test("main() logs the raw (truncated) metadata.source when present but not teach
   assert.equal(entry.tagged, false);
   assert.equal(entry.sourceRaw, "remember");
 });
+
+function withEnv(env, fn) {
+  const original = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = env.CLAUDE_CONFIG_DIR;
+  try {
+    return fn();
+  } finally {
+    if (original === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = original;
+  }
+}

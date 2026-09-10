@@ -1,6 +1,6 @@
 # Mastery ledger protocol
 
-The mastery ledger (`scripts/mastery.mjs`, backed by `<CLAUDE_CONFIG_DIR>/sensei/mastery.json`) is how `teach` remembers what a learner already knows across sessions. This file is the single source of truth for every ledger interaction — read the section for what you're doing right now and follow it exactly.
+The mastery ledger (`scripts/mastery.mjs`, backed by one file per topic under `<CLAUDE_CONFIG_DIR>/sensei/ledgers/<topic-slug>.json`) is how `teach` remembers what a learner already knows across sessions. This file is the single source of truth for every ledger interaction — read the section for what you're doing right now and follow it exactly.
 
 **Node writes, goal capture, plan persistence, and the Phase 1a probe log are now automatic.** Every Phase 1a probe, every graded quiz-check, the learning goal, and the approved dependency map are written by `hooks/teach/mastery-record.mjs` — a `PostToolUse` hook that fires on every `AskUserQuestion` call — the moment you attach the right `metadata.source` JSON to the call, as described in `quiz-protocol.md` and `SKILL.md`'s Phase 1a/1b/2/3. You do not run a separate `Bash` `record` command for any of this anymore. Sections B and C below describe what the hook does, so you understand what's already been recorded when you read the ledger back — they are not instructions to act on.
 
