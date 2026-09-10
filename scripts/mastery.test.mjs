@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import { slugify, getTopic, recordNode, listTopics, emptyLedger, readLedger, writeLedger, ledgerPath } from "./mastery.mjs";
+import { slugify, getTopic, recordNode, listTopics, emptyLedger, readLedger, writeLedger, ledgerPath, getSession, touchSession, setSessionGoal, setSessionPlan, advanceSession } from "./mastery.mjs";
 
 const SCRIPT = new URL("./mastery.mjs", import.meta.url).pathname;
 
@@ -32,8 +32,23 @@ test("slugify falls back to 'topic' when nothing alphanumeric survives", () => {
   assert.equal(slugify("!!!"), "topic");
 });
 
-test("emptyLedger returns a versioned ledger with no topics", () => {
-  assert.deepEqual(emptyLedger(), { version: 1, topics: {} });
+test("emptyLedger returns a versioned ledger with no topics and no sessions", () => {
+  assert.deepEqual(emptyLedger(), { version: 1, topics: {}, sessions: {} });
+});
+
+test("getSession returns null for a topic with no session row", () => {
+  assert.equal(getSession(emptyLedger(), "javascript"), null);
+});
+
+test("getSession returns the recorded session row for a known topic slug", () => {
+  const ledger = {
+    version: 1,
+    topics: {},
+    sessions: { javascript: { goal: "learn fundamentals", dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: "2026-01-01T00:00:00.000Z" } },
+  };
+  assert.deepEqual(getSession(ledger, "javascript"), {
+    goal: "learn fundamentals", dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: "2026-01-01T00:00:00.000Z",
+  });
 });
 
 test("getTopic returns an empty object for an unknown topic slug", () => {
@@ -132,6 +147,106 @@ test("listTopics returns all topic slugs sorted alphabetically", () => {
   assert.deepEqual(listTopics(ledger), ["networking", "powershell-scripting"]);
 });
 
+test("touchSession creates a fresh intake row when none exists", () => {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const result = touchSession(emptyLedger(), "javascript", now);
+  assert.deepEqual(result.sessions.javascript, {
+    goal: null, dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+});
+
+test("touchSession is a no-op (same ledger reference) when a session row already exists", () => {
+  const ledger = touchSession(emptyLedger(), "javascript", new Date("2026-01-01T00:00:00.000Z"));
+  const result = touchSession(ledger, "javascript", new Date("2026-06-01T00:00:00.000Z"));
+  assert.equal(result, ledger, "touchSession must not overwrite or bump updatedAt on an existing row");
+});
+
+test("touchSession does not disturb an existing session for a sibling topic", () => {
+  let ledger = touchSession(emptyLedger(), "javascript", new Date("2026-01-01T00:00:00.000Z"));
+  ledger = touchSession(ledger, "rust", new Date("2026-02-01T00:00:00.000Z"));
+  assert.ok(ledger.sessions.javascript, "javascript session must survive touching a different topic");
+  assert.ok(ledger.sessions.rust, "rust session must be created");
+});
+
+test("setSessionGoal creates the session row if missing and sets the goal", () => {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const result = setSessionGoal(emptyLedger(), "javascript", "understand fundamentals broadly", now);
+  assert.deepEqual(result.sessions.javascript, {
+    goal: "understand fundamentals broadly", dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+});
+
+test("setSessionGoal overwrites a prior goal on an existing row without disturbing dependencyMap", () => {
+  let ledger = setSessionPlan(emptyLedger(), "javascript", { nodes: ["a", "b"], edges: [["a", "b"]] }, new Date("2026-01-01T00:00:00.000Z"));
+  ledger = setSessionGoal(ledger, "javascript", "revised goal", new Date("2026-02-01T00:00:00.000Z"));
+  assert.equal(ledger.sessions.javascript.goal, "revised goal");
+  assert.deepEqual(ledger.sessions.javascript.dependencyMap, { nodes: ["a", "b"], edges: [["a", "b"]] }, "setSessionGoal must not touch dependencyMap");
+});
+
+test("setSessionPlan sets dependencyMap, points nextNodeId at the first node, and flips status to planned", () => {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const plan = { nodes: ["primitives", "typing", "functions"], edges: [["primitives", "typing"], ["typing", "functions"]] };
+  const result = setSessionPlan(emptyLedger(), "javascript", plan, now);
+  assert.deepEqual(result.sessions.javascript, {
+    goal: null, dependencyMap: plan, nextNodeId: "primitives", status: "planned", updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+});
+
+test("setSessionPlan preserves an already-set goal", () => {
+  let ledger = setSessionGoal(emptyLedger(), "javascript", "understand fundamentals", new Date("2026-01-01T00:00:00.000Z"));
+  const plan = { nodes: ["primitives"], edges: [] };
+  ledger = setSessionPlan(ledger, "javascript", plan, new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(ledger.sessions.javascript.goal, "understand fundamentals");
+});
+
+test("setSessionPlan sets nextNodeId to null for a plan with an empty node list", () => {
+  const result = setSessionPlan(emptyLedger(), "javascript", { nodes: [], edges: [] }, new Date("2026-01-01T00:00:00.000Z"));
+  assert.equal(result.sessions.javascript.nextNodeId, null);
+});
+
+test("advanceSession moves nextNodeId forward and flips status to in-progress on a passing grade at the current frontier", () => {
+  const plan = { nodes: ["primitives", "typing", "functions"], edges: [] };
+  let ledger = setSessionPlan(emptyLedger(), "javascript", plan, new Date("2026-01-01T00:00:00.000Z"));
+  ledger = advanceSession(ledger, "javascript", "primitives", "passed", new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(ledger.sessions.javascript.nextNodeId, "typing");
+  assert.equal(ledger.sessions.javascript.status, "in-progress");
+});
+
+test("advanceSession flips status to complete when the last node in the plan passes", () => {
+  const plan = { nodes: ["only-node"], edges: [] };
+  let ledger = setSessionPlan(emptyLedger(), "javascript", plan, new Date("2026-01-01T00:00:00.000Z"));
+  ledger = advanceSession(ledger, "javascript", "only-node", "passed", new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(ledger.sessions.javascript.nextNodeId, null);
+  assert.equal(ledger.sessions.javascript.status, "complete");
+});
+
+test("advanceSession flips status to in-progress on a failing grade too, but does not move nextNodeId", () => {
+  const plan = { nodes: ["primitives", "typing"], edges: [] };
+  let ledger = setSessionPlan(emptyLedger(), "javascript", plan, new Date("2026-01-01T00:00:00.000Z"));
+  ledger = advanceSession(ledger, "javascript", "primitives", "failed", new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(ledger.sessions.javascript.nextNodeId, "primitives", "a failed node must stay the frontier so it gets re-taught");
+  assert.equal(ledger.sessions.javascript.status, "in-progress");
+});
+
+test("advanceSession does not move nextNodeId when the graded node isn't the current frontier", () => {
+  const plan = { nodes: ["primitives", "typing"], edges: [] };
+  let ledger = setSessionPlan(emptyLedger(), "javascript", plan, new Date("2026-01-01T00:00:00.000Z"));
+  ledger = advanceSession(ledger, "javascript", "typing", "passed", new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(ledger.sessions.javascript.nextNodeId, "primitives");
+});
+
+test("advanceSession is a no-op when there is no session row for the topic", () => {
+  const ledger = emptyLedger();
+  const result = advanceSession(ledger, "javascript", "primitives", "passed", new Date("2026-01-01T00:00:00.000Z"));
+  assert.equal(result, ledger);
+});
+
+test("advanceSession is a no-op when the session has no dependencyMap yet", () => {
+  const ledger = touchSession(emptyLedger(), "javascript", new Date("2026-01-01T00:00:00.000Z"));
+  const result = advanceSession(ledger, "javascript", "primitives", "passed", new Date("2026-01-02T00:00:00.000Z"));
+  assert.equal(result, ledger);
+});
+
 test("readLedger returns emptyLedger() when no file exists", () => {
   const configDir = freshConfigDir();
   withConfigDir(configDir, () => {
@@ -179,6 +294,28 @@ test("readLedger warns to stderr and returns emptyLedger() when topics is null",
   });
 });
 
+test("readLedger defaults sessions to {} when the ledger file predates the sessions key", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const path = ledgerPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ version: 1, topics: { javascript: {} } }), "utf8");
+    const result = readLedger();
+    assert.deepEqual(result, { version: 1, topics: { javascript: {} }, sessions: {} });
+  });
+});
+
+test("readLedger defaults sessions to {} when the sessions key is malformed, without losing topics", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const path = ledgerPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ version: 1, topics: { javascript: {} }, sessions: "not an object" }), "utf8");
+    const result = readLedger();
+    assert.deepEqual(result, { version: 1, topics: { javascript: {} }, sessions: {} });
+  });
+});
+
 test("writeLedger writes atomically and readLedger reads back exactly what was written", () => {
   const configDir = freshConfigDir();
   withConfigDir(configDir, () => {
@@ -194,6 +331,35 @@ test("CLI get on an unrecorded topic prints an empty object", () => {
     env: { ...process.env, CLAUDE_CONFIG_DIR: configDir },
   }).toString().trim();
   assert.equal(output, "{}");
+});
+
+test("CLI get-session on a topic with no session row prints null", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const output = execFileSync("node", [SCRIPT, "get-session", "Javascript"], { env }).toString().trim();
+  assert.equal(output, "null");
+});
+
+test("CLI get-session requires a topic argument", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  assert.throws(
+    () => execFileSync("node", [SCRIPT, "get-session"], { env, stdio: "pipe" }),
+    (err) => /Usage: mastery\.mjs get-session/.test(err.stderr.toString())
+  );
+});
+
+test("CLI get-session prints the session row written by touchSession/setSessionGoal, keyed by the slugified topic", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const ledger = setSessionGoal(emptyLedger(), "javascript", "understand fundamentals", new Date("2026-01-01T00:00:00.000Z"));
+    writeLedger(ledger);
+  });
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const output = execFileSync("node", [SCRIPT, "get-session", "JavaScript"], { env }).toString().trim();
+  const parsed = JSON.parse(output);
+  assert.equal(parsed.goal, "understand fundamentals");
+  assert.equal(parsed.status, "intake");
 });
 
 test("CLI get requires a topic argument", () => {
@@ -240,7 +406,7 @@ test("CLI rejects an unknown subcommand", () => {
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
   assert.throws(
     () => execFileSync("node", [SCRIPT, "list"], { env, stdio: "pipe" }),
-    (err) => /Usage: mastery\.mjs <get\|record\|topics>/.test(err.stderr.toString())
+    (err) => /Usage: mastery\.mjs <get\|get-session\|record\|topics>/.test(err.stderr.toString())
   );
 });
 

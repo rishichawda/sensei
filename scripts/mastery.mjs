@@ -17,7 +17,7 @@ export function ledgerPath() {
 }
 
 export function emptyLedger() {
-  return { version: LEDGER_VERSION, topics: {} };
+  return { version: LEDGER_VERSION, topics: {}, sessions: {} };
 }
 
 export function readLedger() {
@@ -34,7 +34,8 @@ export function readLedger() {
     console.error(`mastery.mjs: warning: ledger at ${path} has an unrecognized shape (starting fresh)`);
     return emptyLedger();
   }
-  return parsed;
+  const sessionsValid = parsed.sessions && typeof parsed.sessions === "object" && !Array.isArray(parsed.sessions);
+  return { ...parsed, sessions: sessionsValid ? parsed.sessions : {} };
 }
 
 export function writeLedger(ledger) {
@@ -47,6 +48,52 @@ export function writeLedger(ledger) {
 
 export function getTopic(ledger, topicSlug) {
   return ledger.topics[topicSlug] || {};
+}
+
+export function getSession(ledger, topicSlug) {
+  return ledger.sessions[topicSlug] || null;
+}
+
+export function touchSession(ledger, topicSlug, now = new Date()) {
+  if (ledger.sessions[topicSlug]) return ledger;
+  const row = { goal: null, dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: now.toISOString() };
+  return { ...ledger, sessions: { ...ledger.sessions, [topicSlug]: row } };
+}
+
+export function setSessionGoal(ledger, topicSlug, goal, now = new Date()) {
+  const base = touchSession(ledger, topicSlug, now);
+  const session = base.sessions[topicSlug];
+  const updated = { ...session, goal, updatedAt: now.toISOString() };
+  return { ...base, sessions: { ...base.sessions, [topicSlug]: updated } };
+}
+
+export function setSessionPlan(ledger, topicSlug, plan, now = new Date()) {
+  const base = touchSession(ledger, topicSlug, now);
+  const session = base.sessions[topicSlug];
+  const nodes = Array.isArray(plan?.nodes) ? plan.nodes : [];
+  const updated = { ...session, dependencyMap: plan, nextNodeId: nodes[0] ?? null, status: "planned", updatedAt: now.toISOString() };
+  return { ...base, sessions: { ...base.sessions, [topicSlug]: updated } };
+}
+
+export function advanceSession(ledger, topicSlug, nodeId, status, now = new Date()) {
+  const session = getSession(ledger, topicSlug);
+  if (!session || !session.dependencyMap) return ledger;
+  let nextNodeId = session.nextNodeId;
+  let newStatus = session.status === "planned" ? "in-progress" : session.status;
+  if (status === "passed" && nodeId === session.nextNodeId) {
+    const nodes = session.dependencyMap.nodes || [];
+    const idx = nodes.indexOf(nodeId);
+    const following = idx >= 0 ? nodes[idx + 1] : undefined;
+    if (following !== undefined) {
+      nextNodeId = following;
+    } else {
+      nextNodeId = null;
+      newStatus = "complete";
+    }
+  }
+  if (newStatus === session.status && nextNodeId === session.nextNodeId) return ledger;
+  const updated = { ...session, status: newStatus, nextNodeId, updatedAt: now.toISOString() };
+  return { ...ledger, sessions: { ...ledger.sessions, [topicSlug]: updated } };
 }
 
 export function listTopics(ledger) {
@@ -72,6 +119,16 @@ function main() {
     }
     const ledger = readLedger();
     console.log(JSON.stringify(getTopic(ledger, slugify(topicArg))));
+    return;
+  }
+
+  if (command === "get-session") {
+    if (!topicArg) {
+      console.error("Usage: mastery.mjs get-session <topic>");
+      process.exit(1);
+    }
+    const ledger = readLedger();
+    console.log(JSON.stringify(getSession(ledger, slugify(topicArg))));
     return;
   }
 
@@ -103,7 +160,7 @@ function main() {
     return;
   }
 
-  console.error("Usage: mastery.mjs <get|record|topics> ...");
+  console.error("Usage: mastery.mjs <get|get-session|record|topics> ...");
   process.exit(1);
 }
 
