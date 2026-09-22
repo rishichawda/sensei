@@ -88,6 +88,12 @@ test("recordNode adds a new node without mutating the input topic ledger", () =>
   assert.equal(after.version, 1, "version should be preserved");
 });
 
+test("recordNode uses the injected now instead of calling new Date() internally", () => {
+  const before = { version: 1, nodes: {}, session: null };
+  const after = recordNode(before, "packets", "passed", new Date("2026-03-05T12:00:00.000Z"));
+  assert.equal(after.nodes.packets.lastTaughtAt, "2026-03-05T12:00:00.000Z");
+});
+
 test("recordNode overwrites an existing node's status without disturbing sibling nodes", () => {
   const before = {
     version: 1,

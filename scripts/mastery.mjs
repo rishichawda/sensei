@@ -120,10 +120,10 @@ export function advanceSession(topicLedger, nodeId, status, now = new Date()) {
   return { ...topicLedger, session: { ...session, status: newStatus, nextNodeId, updatedAt: now.toISOString() } };
 }
 
-export function recordNode(topicLedger, nodeId, status) {
+export function recordNode(topicLedger, nodeId, status, now = new Date()) {
   const existing = topicLedger.nodes[nodeId];
   if (status === "seen" && existing) return topicLedger;
-  const nodes = { ...topicLedger.nodes, [nodeId]: { status, lastTaughtAt: new Date().toISOString() } };
+  const nodes = { ...topicLedger.nodes, [nodeId]: { status, lastTaughtAt: now.toISOString() } };
   return { ...topicLedger, nodes };
 }
 
