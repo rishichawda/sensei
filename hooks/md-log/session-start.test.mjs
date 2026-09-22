@@ -115,3 +115,9 @@ test("main() does not advance lastLine past 0 for an empty transcript (would oth
   const state = readState(transcriptPath);
   assert.equal(state.lastLine, 0);
 });
+
+test("main() exits cleanly on a literal JSON null payload instead of throwing", () => {
+  assert.doesNotThrow(() => {
+    execFileSync(process.execPath, [SCRIPT], { input: "null" });
+  });
+});

@@ -77,8 +77,8 @@ async function main() {
   } catch {
     return;
   }
+  if (!payload || !payload.transcript_path) return;
   const transcriptPath = payload.transcript_path;
-  if (!transcriptPath) return;
   const state = readState(transcriptPath);
   if (!state.file) return;
 
