@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import {
@@ -295,6 +295,39 @@ test("readTopicLedger warns to stderr and returns emptyTopicLedger() when the fi
     }
     assert.deepEqual(result, emptyTopicLedger());
     assert.match(stderrOutput, /could not parse ledger/);
+  });
+});
+
+test("readTopicLedger preserves a corrupt file as a backup instead of losing it on the next write", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const path = topicLedgerPath("javascript");
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, "{ not valid json", "utf8");
+
+    const originalError = console.error;
+    let stderrOutput = "";
+    console.error = (msg) => { stderrOutput += msg; };
+    let result;
+    try {
+      result = readTopicLedger("javascript");
+    } finally {
+      console.error = originalError;
+    }
+
+    // The corrupt original must not still be at `path` — otherwise a
+    // subsequent writeTopicLedger() would silently overwrite it and the
+    // data would be unrecoverable.
+    assert.equal(existsSync(path), false);
+
+    const backupMatch = stderrOutput.match(/original preserved at (\S+\.bak)/);
+    assert.ok(backupMatch, `expected a backup path in the warning, got: ${stderrOutput}`);
+    const backupPath = backupMatch[1];
+    assert.equal(readFileSync(backupPath, "utf8"), "{ not valid json");
+
+    // Writing after the corrupt read must not touch the backup.
+    writeTopicLedger("javascript", recordNode(result, "foo", "seen"));
+    assert.equal(readFileSync(backupPath, "utf8"), "{ not valid json");
   });
 });
 

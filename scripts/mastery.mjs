@@ -40,7 +40,9 @@ export function readTopicLedger(topicSlug) {
   try {
     parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (err) {
-    console.error(`mastery.mjs: warning: could not parse ledger at ${path} (starting fresh): ${err.message}`);
+    const backupPath = `${path}.corrupt-${Date.now()}-${process.pid}.bak`;
+    renameSync(path, backupPath);
+    console.error(`mastery.mjs: warning: could not parse ledger at ${path} (starting fresh; original preserved at ${backupPath}): ${err.message}`);
     return emptyTopicLedger();
   }
   if (!isPlainObject(parsed)) {
