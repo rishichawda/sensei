@@ -13,6 +13,9 @@ export function slugify(text) {
 }
 
 export function ledgersDir() {
+  if (!process.env.CLAUDE_CONFIG_DIR && !process.env.HOME) {
+    throw new Error("mastery.mjs: cannot determine config directory — set CLAUDE_CONFIG_DIR or HOME");
+  }
   const configRoot = process.env.CLAUDE_CONFIG_DIR || resolve(process.env.HOME, ".claude");
   return resolve(configRoot, "sensei", "ledgers");
 }

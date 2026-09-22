@@ -539,3 +539,18 @@ test("ledgersDir resolves under CLAUDE_CONFIG_DIR/sensei/ledgers", () => {
     assert.equal(ledgersDir(), join(configDir, "sensei", "ledgers"));
   });
 });
+
+test("ledgersDir throws a labeled error, not a raw TypeError, when CLAUDE_CONFIG_DIR and HOME are both unset", () => {
+  const originalConfigDir = process.env.CLAUDE_CONFIG_DIR;
+  const originalHome = process.env.HOME;
+  delete process.env.CLAUDE_CONFIG_DIR;
+  delete process.env.HOME;
+  try {
+    assert.throws(() => ledgersDir(), /mastery\.mjs: cannot determine config directory/);
+  } finally {
+    if (originalConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = originalConfigDir;
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+  }
+});
