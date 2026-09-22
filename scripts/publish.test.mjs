@@ -74,3 +74,14 @@ test("publish.sh refuses a symlink chain longer than the 20-hop bound", () => {
   );
   assert.ok(!existsSync(join(dir, "viz")));
 });
+
+test("publish.sh gives its own labeled error, not cd's generic one, when a symlink resolves into a missing directory", () => {
+  const dir = mkdtempSync(join(tmpdir(), "publish-test-"));
+  const src = join(dir, "broken-link.png");
+  symlinkSync(join(dir, "missing-subdir", "file.png"), src);
+  assert.throws(
+    () => execFileSync("bash", [SCRIPT, src, "slug"], { cwd: dir, stdio: "pipe" }),
+    (err) => /source directory does not exist after symlink resolution/.test(err.stderr.toString())
+  );
+  assert.ok(!existsSync(join(dir, "viz")));
+});

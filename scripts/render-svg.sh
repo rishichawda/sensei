@@ -32,6 +32,10 @@ resolve_confined() {
     echo "render-svg.sh: refusing to use ${label} path: symlink chain exceeds 20 hops: $2" >&2
     exit 1
   fi
+  if [ ! -d "$(dirname "$target")" ]; then
+    echo "render-svg.sh: ${label} directory does not exist after symlink resolution: $(dirname "$target")" >&2
+    exit 1
+  fi
   dir="$(cd "$(dirname "$target")" && pwd -P)"
   temp_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
   case "$dir" in

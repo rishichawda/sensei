@@ -113,3 +113,14 @@ test("render-svg.sh refuses a symlink chain longer than the 20-hop bound", () =>
     (err) => /symlink chain exceeds 20 hops/.test(err.stderr.toString())
   );
 });
+
+test("render-svg.sh gives its own labeled error, not cd's generic one, when a symlink resolves into a missing directory", () => {
+  const src = copyFixtureToTmp(FIXTURE);
+  const dir = mkdtempSync(join(tmpdir(), "render-svg-test-"));
+  const out = join(dir, "broken-link.png");
+  symlinkSync(join(dir, "missing-subdir", "file.png"), out);
+  assert.throws(
+    () => execFileSync("bash", [SCRIPT, src, out], { stdio: "pipe" }),
+    (err) => /output directory does not exist after symlink resolution/.test(err.stderr.toString())
+  );
+});
