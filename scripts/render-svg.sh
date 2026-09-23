@@ -14,41 +14,12 @@ fi
 SRC="$1"
 OUT="$2"
 
-resolve_confined() {
-  local label="$1" target="$2" hops=0 resolved dir temp_root
-  if [ ! -d "$(dirname "$target")" ]; then
-    echo "render-svg.sh: ${label} directory does not exist: $(dirname "$target")" >&2
-    exit 1
-  fi
-  while [ -L "$target" ] && [ "$hops" -lt 20 ]; do
-    resolved="$(readlink "$target")"
-    case "$resolved" in
-      /*) target="$resolved" ;;
-      *) target="$(dirname "$target")/$resolved" ;;
-    esac
-    hops=$((hops + 1))
-  done
-  if [ -L "$target" ]; then
-    echo "render-svg.sh: refusing to use ${label} path: symlink chain exceeds 20 hops: $2" >&2
-    exit 1
-  fi
-  if [ ! -d "$(dirname "$target")" ]; then
-    echo "render-svg.sh: ${label} directory does not exist after symlink resolution: $(dirname "$target")" >&2
-    exit 1
-  fi
-  dir="$(cd "$(dirname "$target")" && pwd -P)"
-  temp_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
-  case "$dir" in
-    "$temp_root"|"$temp_root"/*) : ;;
-    *)
-      echo "render-svg.sh: refusing to use ${label} path outside \$TMPDIR (${temp_root}): $2 -> ${dir}/$(basename "$target")" >&2
-      exit 1
-      ;;
-  esac
-}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-resolve_confined "the source" "$SRC"
-resolve_confined "the output" "$OUT"
+source "${SCRIPT_DIR}/lib/confine.sh"
+
+resolve_confined "the source" "$SRC" "render-svg.sh"
+resolve_confined "the output" "$OUT" "render-svg.sh"
 
 if [ ! -f "$SRC" ]; then
   echo "render-svg.sh: source file not found: $SRC" >&2

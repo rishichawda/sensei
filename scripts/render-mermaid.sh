@@ -10,44 +10,14 @@ fi
 SRC="$1"
 OUT="$2"
 
-resolve_confined() {
-  local label="$1" target="$2" hops=0 resolved dir temp_root
-  if [ ! -d "$(dirname "$target")" ]; then
-    echo "render-mermaid.sh: ${label} directory does not exist: $(dirname "$target")" >&2
-    exit 1
-  fi
-  while [ -L "$target" ] && [ "$hops" -lt 20 ]; do
-    resolved="$(readlink "$target")"
-    case "$resolved" in
-      /*) target="$resolved" ;;
-      *) target="$(dirname "$target")/$resolved" ;;
-    esac
-    hops=$((hops + 1))
-  done
-  if [ -L "$target" ]; then
-    echo "render-mermaid.sh: refusing to use ${label} path: symlink chain exceeds 20 hops: $2" >&2
-    exit 1
-  fi
-  if [ ! -d "$(dirname "$target")" ]; then
-    echo "render-mermaid.sh: ${label} directory does not exist after symlink resolution: $(dirname "$target")" >&2
-    exit 1
-  fi
-  dir="$(cd "$(dirname "$target")" && pwd -P)"
-  temp_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
-  case "$dir" in
-    "$temp_root"|"$temp_root"/*) : ;;
-    *)
-      echo "render-mermaid.sh: refusing to use ${label} path outside \$TMPDIR (${temp_root}): $2 -> ${dir}/$(basename "$target")" >&2
-      exit 1
-      ;;
-  esac
-}
-
-resolve_confined "the source" "$SRC"
-resolve_confined "the output" "$OUT"
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+source "${SCRIPT_DIR}/lib/confine.sh"
+
+resolve_confined "the source" "$SRC" "render-mermaid.sh"
+resolve_confined "the output" "$OUT" "render-mermaid.sh"
+
 MMDC="${PLUGIN_ROOT}/node_modules/.bin/mmdc"
 
 if [ ! -x "$MMDC" ]; then
