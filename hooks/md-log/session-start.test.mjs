@@ -218,6 +218,73 @@ test("backfill walks the live parentUuid chain and excludes an abandoned branch'
   assert.ok(rootIdx < liveQIdx && liveQIdx < liveAIdx, "live-branch turns must appear in root-to-leaf order");
 });
 
+test("backfill recovers from a literal JSON null transcript line on the fallback (no-parentUuid) path and still logs the surrounding real turns", () => {
+  const dir = mkdtempSync(join(tmpdir(), "md-log-backfill-"));
+  const logFile = join(dir, "lesson.md");
+
+  const userLine = JSON.stringify({
+    type: "user",
+    message: { role: "user", content: "What is TCP?" },
+  });
+  const nullLine = "null";
+  const assistantLine = JSON.stringify({
+    type: "assistant",
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "TCP is a reliable transport protocol." }],
+    },
+  });
+
+  let count;
+  assert.doesNotThrow(() => {
+    count = backfill([userLine, nullLine, assistantLine], logFile);
+  });
+
+  assert.equal(count, 2, "the literal null line must be skipped, not crash or drop a real turn");
+  const content = readFileSync(logFile, "utf8");
+  const qIdx = content.indexOf("What is TCP?");
+  const aIdx = content.indexOf("TCP is a reliable transport protocol.");
+  assert.ok(qIdx >= 0 && aIdx >= 0, "both surrounding real turns must be logged");
+  assert.ok(qIdx < aIdx, "surrounding turns must remain in order around the null line");
+});
+
+test("backfill recovers from a literal JSON null transcript line on the reconstruction (parentUuid-present) path", () => {
+  const dir = mkdtempSync(join(tmpdir(), "md-log-backfill-"));
+  const logFile = join(dir, "lesson.md");
+
+  // hasParentUuid is true here (childLine carries parentUuid), so this
+  // enters reconstructLivePath's uuid-map build before backfill's main loop
+  // ever runs -- that's Finding 2's exact site. Once fixed, control flow
+  // continues into backfill's main loop for the two real entries the walk
+  // collects, which is Finding 1's site -- so this test exercises both
+  // guards on the same path, even though the null line itself never reaches
+  // Finding 1's line (it's never "real", so it's never collected).
+  const rootLine = JSON.stringify({
+    type: "user",
+    uuid: "root-1",
+    message: { role: "user", content: "Kick off the task" },
+  });
+  const nullLine = "null";
+  const childLine = JSON.stringify({
+    type: "assistant",
+    uuid: "child-1",
+    parentUuid: "root-1",
+    message: { role: "assistant", content: "Acknowledged" },
+  });
+
+  let count;
+  assert.doesNotThrow(() => {
+    count = backfill([rootLine, nullLine, childLine], logFile);
+  });
+
+  assert.equal(count, 2, "the null line must not break uuid-map construction or the parentUuid walk");
+  const content = readFileSync(logFile, "utf8");
+  const rootIdx = content.indexOf("Kick off the task");
+  const childIdx = content.indexOf("Acknowledged");
+  assert.ok(rootIdx >= 0 && childIdx >= 0, "both real turns on the live chain must be logged");
+  assert.ok(rootIdx < childIdx, "turns must appear in root-to-leaf order");
+});
+
 test("backfill falls back to plain file-order iteration when no real entry carries a parentUuid (backward compatibility)", () => {
   // fixtures/sample-transcript.jsonl carries no uuid/parentUuid fields at
   // all, matching every pre-existing transcript shape this hook has ever

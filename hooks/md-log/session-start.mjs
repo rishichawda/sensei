@@ -71,7 +71,7 @@ function reconstructLivePath(transcriptLines) {
 
   const byUuid = new Map();
   for (const item of parsed) {
-    if (item.entry.uuid != null) byUuid.set(item.entry.uuid, item);
+    if (item.entry?.uuid != null) byUuid.set(item.entry.uuid, item);
   }
 
   let lastReal = null;
@@ -102,7 +102,7 @@ export function backfill(transcriptLines, logFile) {
     } catch {
       continue;
     }
-    if (entry.isMeta === true) continue;
+    if (entry?.isMeta === true) continue;
     const msg = entry?.message;
     if (!msg || (msg.role !== "user" && msg.role !== "assistant")) continue;
 
