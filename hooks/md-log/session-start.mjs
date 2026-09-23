@@ -30,6 +30,7 @@ export function backfill(transcriptLines, logFile) {
     } catch {
       continue;
     }
+    if (entry.isMeta === true) continue;
     const msg = entry?.message;
     if (!msg || (msg.role !== "user" && msg.role !== "assistant")) continue;
 

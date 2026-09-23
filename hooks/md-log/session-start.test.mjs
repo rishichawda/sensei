@@ -121,3 +121,38 @@ test("main() exits cleanly on a literal JSON null payload instead of throwing", 
     execFileSync(process.execPath, [SCRIPT], { input: "null" });
   });
 });
+
+test("backfill skips injected skill-body lines (isMeta: true) and mirrors the surrounding command and reply", () => {
+  const dir = mkdtempSync(join(tmpdir(), "md-log-backfill-"));
+  const logFile = join(dir, "lesson.md");
+
+  const commandLine = JSON.stringify({
+    type: "user",
+    message: { role: "user", content: "Use the teach skill to analyze this" },
+  });
+  const skillBodyLine = JSON.stringify({
+    type: "user",
+    isMeta: true,
+    message: { role: "user", content: "This is the full skill body and should not appear in the output" },
+  });
+  const replyLine = JSON.stringify({
+    type: "assistant",
+    attributionSkill: "teach",
+    message: {
+      role: "assistant",
+      content: "I analyzed it and here is the result.",
+    },
+  });
+
+  const count = backfill([commandLine, skillBodyLine, replyLine], logFile);
+
+  assert.equal(count, 2, "should only log command and reply, not the injected skill body");
+  const content = readFileSync(logFile, "utf8");
+  assert.match(content, /Use the teach skill to analyze this/, "command text must appear");
+  assert.match(content, /I analyzed it and here is the result\./, "assistant reply must appear");
+  assert.doesNotMatch(
+    content,
+    /This is the full skill body/,
+    "injected skill body must not appear in output"
+  );
+});
