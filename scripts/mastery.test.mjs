@@ -337,6 +337,42 @@ test("readTopicLedger preserves a corrupt file as a backup instead of losing it 
   });
 });
 
+test("readTopicLedger backs up and discards a ledger with a mismatched version", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const path = topicLedgerPath("javascript");
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ version: 2, nodes: {}, session: null }), "utf8");
+
+    const originalError = console.error;
+    let stderrOutput = "";
+    console.error = (msg) => { stderrOutput += msg; };
+    let result;
+    try {
+      result = readTopicLedger("javascript");
+    } finally {
+      console.error = originalError;
+    }
+
+    assert.deepEqual(result, emptyTopicLedger());
+    assert.equal(existsSync(path), false);
+    const backupMatch = stderrOutput.match(/original preserved at (\S+\.bak)/);
+    assert.ok(backupMatch, `expected a backup path in the warning, got: ${stderrOutput}`);
+    assert.match(readFileSync(backupMatch[1], "utf8"), /"version":\s*2/);
+  });
+});
+
+test("readTopicLedger backs up and discards a ledger with no version field at all", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const path = topicLedgerPath("javascript");
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ nodes: {}, session: null }), "utf8");
+    const result = readTopicLedger("javascript");
+    assert.deepEqual(result, emptyTopicLedger());
+  });
+});
+
 test("readTopicLedger warns to stderr and returns emptyTopicLedger() when the file is a JSON array, not an object", () => {
   const configDir = freshConfigDir();
   withConfigDir(configDir, () => {

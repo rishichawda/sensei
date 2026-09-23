@@ -52,6 +52,12 @@ export function readTopicLedger(topicSlug) {
     console.error(`mastery.mjs: warning: ledger at ${path} has an unrecognized shape (starting fresh)`);
     return emptyTopicLedger();
   }
+  if (parsed.version !== LEDGER_VERSION) {
+    const backupPath = `${path}.corrupt-${Date.now()}-${process.pid}.bak`;
+    renameSync(path, backupPath);
+    console.error(`mastery.mjs: warning: ledger at ${path} has an incompatible version ${parsed.version} (starting fresh; original preserved at ${backupPath})`);
+    return emptyTopicLedger();
+  }
   const nodes = isPlainObject(parsed.nodes) ? parsed.nodes : {};
   const session = parsed.session === null || isPlainObject(parsed.session) ? parsed.session : null;
   return { ...parsed, nodes, session };
