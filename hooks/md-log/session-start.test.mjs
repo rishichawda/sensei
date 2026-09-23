@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { backfill } from "./session-start.mjs";
-import { readState, writeState } from "./lib.mjs";
+import { readState, writeState, userBlock, assistantBlock } from "./lib.mjs";
 
 test("backfill writes a user/assistant block per transcript message, in order", () => {
   const fixture = readFileSync(new URL("./fixtures/sample-transcript.jsonl", import.meta.url), "utf8");
@@ -155,4 +155,90 @@ test("backfill skips injected skill-body lines (isMeta: true) and mirrors the su
     /This is the full skill body/,
     "injected skill body must not appear in output"
   );
+});
+
+test("backfill walks the live parentUuid chain and excludes an abandoned branch's turns", () => {
+  const dir = mkdtempSync(join(tmpdir(), "md-log-backfill-"));
+  const logFile = join(dir, "lesson.md");
+
+  // Reproduces the probe's 9a95b2a7 shape: a shared ancestor uuid, two
+  // sibling lines whose parentUuid both point at it (a double-submit or
+  // /rewind fork), and only one of the two with a further descendant chain
+  // reaching the transcript's actual final line. The shared ancestor is a
+  // bookkeeping "system" line (not a real user/assistant turn) with no
+  // `message` field at all, matching 9a95b2a7's actual shared parent
+  // (53fbb713..., type:"system") — this is what a real fork's immediate
+  // parent looks like, and it's what a map scoped to real-entries-only would
+  // fail to resolve through.
+  const rootLine = JSON.stringify({
+    type: "user",
+    uuid: "root-1",
+    message: { role: "user", content: "Kick off the task" },
+  });
+  const bookkeepingLine = JSON.stringify({
+    type: "system",
+    uuid: "sys-1",
+    parentUuid: "root-1",
+  });
+  const abandonedLine = JSON.stringify({
+    type: "user",
+    uuid: "abandoned-1",
+    parentUuid: "sys-1",
+    message: { role: "user", content: "Abandoned duplicate question" },
+  });
+  const liveQuestionLine = JSON.stringify({
+    type: "user",
+    uuid: "live-1",
+    parentUuid: "sys-1",
+    message: { role: "user", content: "Live question after double-submit" },
+  });
+  const liveAnswerLine = JSON.stringify({
+    type: "assistant",
+    uuid: "live-2",
+    parentUuid: "live-1",
+    message: { role: "assistant", content: "Live answer" },
+  });
+
+  const count = backfill(
+    [rootLine, bookkeepingLine, abandonedLine, liveQuestionLine, liveAnswerLine],
+    logFile
+  );
+
+  assert.equal(count, 3, "only the root turn plus the live branch's two turns should be logged");
+  const content = readFileSync(logFile, "utf8");
+  assert.doesNotMatch(
+    content,
+    /Abandoned duplicate question/,
+    "the abandoned branch's turn must not appear in the output log"
+  );
+  const rootIdx = content.indexOf("Kick off the task");
+  const liveQIdx = content.indexOf("Live question after double-submit");
+  const liveAIdx = content.indexOf("Live answer");
+  assert.ok(rootIdx >= 0 && liveQIdx >= 0 && liveAIdx >= 0, "all live-branch turns must appear");
+  assert.ok(rootIdx < liveQIdx && liveQIdx < liveAIdx, "live-branch turns must appear in root-to-leaf order");
+});
+
+test("backfill falls back to plain file-order iteration when no real entry carries a parentUuid (backward compatibility)", () => {
+  // fixtures/sample-transcript.jsonl carries no uuid/parentUuid fields at
+  // all, matching every pre-existing transcript shape this hook has ever
+  // seen. This proves Step 3's reconstruction degrades safely rather than
+  // only being exercised on the branching case above: the output must be
+  // byte-identical to today's plain file-order behavior, not just "in order".
+  const fixture = readFileSync(new URL("./fixtures/sample-transcript.jsonl", import.meta.url), "utf8");
+  const lines = fixture.trim().split("\n");
+  const dir = mkdtempSync(join(tmpdir(), "md-log-backfill-"));
+  const logFile = join(dir, "lesson.md");
+
+  const count = backfill(lines, logFile);
+
+  assert.equal(count, 4);
+  const expected =
+    [
+      userBlock("What is TCP?"),
+      assistantBlock("TCP is a reliable transport protocol."),
+      userBlock("Why reliable?"),
+      assistantBlock("Because it retransmits lost packets."),
+    ].join("\n\n\n") + "\n";
+  const content = readFileSync(logFile, "utf8");
+  assert.equal(content, expected, "output must be byte-identical to plain file-order iteration");
 });

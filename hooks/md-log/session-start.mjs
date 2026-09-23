@@ -1,10 +1,10 @@
 import { appendToFile, userBlock, assistantBlock, readState, writeState } from "./lib.mjs";
 import { handlePreToolUse, handlePostToolUse } from "./ask-user-question.mjs";
 
-// Simplification: backfill/top-up walks the transcript in file order, not by
-// following the active branch's parent-chain — for a rewound/branched session
-// this may include some abandoned-branch turns. Deliberately deferred: low
-// impact for normal single-branch personal use.
+// backfill/top-up walks the transcript's true root-to-leaf path when the
+// lines carry parentUuid links (see reconstructLivePath below), so a
+// rewound/branched session's abandoned-branch turns are excluded. Falls back
+// to plain file order when no real entry carries a parentUuid at all.
 
 function blocksOf(content) {
   if (typeof content === "string") return [{ type: "text", text: content }];
@@ -21,9 +21,81 @@ function isAskUserQuestionResult(toolUseResult) {
   return !!toolUseResult && Array.isArray(toolUseResult.questions) && !!toolUseResult.answers;
 }
 
+// The file itself never marks which branch is live (see plan's probe
+// findings). The only reliable reconstruction is: parse every line, classify
+// "real" turns the same way the main loop does (message.role user/assistant
+// — not entry.type), then walk parentUuid backward from the last real
+// non-sidechain entry to the root. Anything sharing a parentUuid with that
+// path but not on it (an abandoned branch) is simply never visited.
+//
+// The parentUuid resolution map is built from EVERY parsed entry, not just
+// real ones: per the plan's probe findings, parentUuid exists on every line
+// type, and real turns routinely have a bookkeeping line (attachment,
+// system, etc.) as their *immediate* parent rather than another real turn —
+// confirmed live-fire against session 9a95b2a7 (24 of 61 real entries there
+// have a non-real immediate parent). Scoping the map to real entries only
+// made the backward walk stop at the first such bookkeeping line, silently
+// truncating almost the entire session instead of just excluding the
+// abandoned branch. Walking through non-real nodes as transparent pass-through
+// fixes this: the walk still only collects real entries into the output, and
+// since each node has exactly one parent, the abandoned branch stays
+// unreachable regardless of which nodes the map contains.
+//
+// Backward-compatibility fallback: every pre-existing transcript shape this
+// hook has seen carries no uuid/parentUuid at all. If none of the real
+// entries in transcriptLines carry a parentUuid, this returns transcriptLines
+// unchanged so the existing per-line loop runs exactly as before. This check
+// stays scoped to real entries only — widening it to all entries would flip
+// fixtures with bookkeeping-only parentUuid fields into reconstruction mode
+// for no reason.
+function reconstructLivePath(transcriptLines) {
+  const parsed = [];
+  for (const raw of transcriptLines) {
+    let entry;
+    try {
+      entry = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    parsed.push({ raw, entry });
+  }
+
+  const isReal = ({ entry }) => {
+    const role = entry?.message?.role;
+    return role === "user" || role === "assistant";
+  };
+  const realEntries = parsed.filter(isReal);
+
+  const hasParentUuid = realEntries.some(({ entry }) => entry.parentUuid != null);
+  if (!hasParentUuid) return transcriptLines;
+
+  const byUuid = new Map();
+  for (const item of parsed) {
+    if (item.entry.uuid != null) byUuid.set(item.entry.uuid, item);
+  }
+
+  let lastReal = null;
+  for (const item of realEntries) {
+    if (item.entry.isSidechain !== true) lastReal = item;
+  }
+  if (!lastReal) return transcriptLines;
+
+  const collected = [];
+  const visited = new Set();
+  let current = lastReal;
+  while (current && !visited.has(current)) {
+    if (isReal(current)) collected.push(current.raw);
+    visited.add(current);
+    const parentUuid = current.entry.parentUuid;
+    current = parentUuid != null ? byUuid.get(parentUuid) : undefined;
+  }
+  collected.reverse();
+  return collected;
+}
+
 export function backfill(transcriptLines, logFile) {
   let count = 0;
-  for (const raw of transcriptLines) {
+  for (const raw of reconstructLivePath(transcriptLines)) {
     let entry;
     try {
       entry = JSON.parse(raw);
