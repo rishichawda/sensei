@@ -115,36 +115,46 @@ test("applyTeachEvent sets the goal for a 'goal' event", () => {
   assert.equal(getSession(ledger).goal, "understand fundamentals");
 });
 
-test("applyTeachEvent sets the plan for a 'plan' event when the answer matches the single offered option, for any wording", () => {
+test("applyTeachEvent sets the plan for a 'plan' event when the answer matches the tag's approve label, for any wording", () => {
   const plan = { nodes: ["primitives"], edges: [] };
-  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
-  const approved = applyTeachEvent(emptyTopicLedger(), event, "Sounds great, let's begin", ["Sounds great, let's begin"], new Date("2026-01-01T00:00:00.000Z"));
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan, approve: "Sounds great, let's begin" };
+  const approved = applyTeachEvent(emptyTopicLedger(), event, "Sounds great, let's begin", ["Sounds great, let's begin", "Let me change something"], now);
   assert.equal(approved.ledger.session.status, "planned");
 
-  const approvedDifferentWording = applyTeachEvent(emptyTopicLedger(), event, "Yep, go ahead", ["Yep, go ahead"], new Date("2026-01-01T00:00:00.000Z"));
+  const otherWording = { ...event, approve: "Yep, go ahead" };
+  const approvedDifferentWording = applyTeachEvent(emptyTopicLedger(), otherWording, "Yep, go ahead", ["Yep, go ahead", "Not yet"], now);
   assert.equal(approvedDifferentWording.ledger.session.status, "planned", "approval must not depend on any specific wording");
 });
 
-test("applyTeachEvent does not set the plan when the answer came from 'Other' (decline/feedback), regardless of the offered option's wording", () => {
+test("applyTeachEvent does not set the plan when the answer is the non-approve option or free-text 'Other'", () => {
   const plan = { nodes: ["primitives"], edges: [] };
-  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
-  const declined = applyTeachEvent(emptyTopicLedger(), event, "Actually let's change the order first", ["Sounds great, let's begin"], new Date("2026-01-01T00:00:00.000Z"));
-  assert.equal(declined.ledger.session.status, "intake", "an 'Other' answer must not match the single offered option");
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan, approve: "Sounds great, let's begin" };
+  const labels = ["Sounds great, let's begin", "Let me change something"];
+  const declinedOption = applyTeachEvent(emptyTopicLedger(), event, "Let me change something", labels, now);
+  assert.equal(declinedOption.ledger.session.status, "intake");
+  assert.equal(declinedOption.diagnostic, undefined, "a plain decline is not a malformed call");
+
+  const declinedOther = applyTeachEvent(emptyTopicLedger(), event, "Actually let's change the order first", labels, now);
+  assert.equal(declinedOther.ledger.session.status, "intake", "an 'Other' answer must not match the approve label");
 });
 
-test("applyTeachEvent returns a diagnostic and does not set the plan when a 'plan' event carries more than one real option", () => {
+test("applyTeachEvent returns a diagnostic and does not set the plan when the approve label matches no option", () => {
   const plan = { nodes: ["primitives"], edges: [] };
-  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
-  const result = applyTeachEvent(emptyTopicLedger(), event, "Looks good", ["Looks good", "Not yet"], new Date("2026-01-01T00:00:00.000Z"));
-  assert.match(result.diagnostic, /exactly one option/);
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan, approve: "Looks good" };
+  const result = applyTeachEvent(emptyTopicLedger(), event, "Looks good", ["Sounds great", "Not yet"], now);
+  assert.match(result.diagnostic, /approve/);
   assert.equal(result.ledger.session.status, "intake", "a malformed approval call must leave the session unplanned");
 });
 
-test("applyTeachEvent returns a diagnostic and does not set the plan when a 'plan' event carries zero real options", () => {
+test("applyTeachEvent returns a diagnostic and does not set the plan when a 'plan' event carries no approve label", () => {
   const plan = { nodes: ["primitives"], edges: [] };
   const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
-  const result = applyTeachEvent(emptyTopicLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
-  assert.match(result.diagnostic, /exactly one option/);
+  const result = applyTeachEvent(emptyTopicLedger(), event, "Sounds great", ["Sounds great", "Not yet"], new Date("2026-01-01T00:00:00.000Z"));
+  assert.match(result.diagnostic, /approve/);
+  assert.equal(result.ledger.session.status, "intake");
 });
 
 test("main() survives unparseable JSON on stdin without crashing", () => {

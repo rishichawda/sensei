@@ -52,10 +52,10 @@ export function applyTeachEvent(topicLedger, event, answerText, optionLabels, no
   }
 
   if (event.kind === "plan") {
-    if (optionLabels.length !== 1) {
-      return { ledger: next, diagnostic: `teach: plan-approval call must carry exactly one option, got ${optionLabels.length}` };
+    if (!optionLabels.includes(event.approve)) {
+      return { ledger: next, diagnostic: `teach: plan event's approve value "${event.approve}" does not match any option label` };
     }
-    if (answerText === optionLabels[0]) {
+    if (answerText === event.approve) {
       next = setSessionPlan(next, event.plan, now);
     }
     return { ledger: next };
