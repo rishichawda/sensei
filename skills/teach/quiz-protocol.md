@@ -2,7 +2,7 @@
 
 There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extension point for outside code to add grading logic, and the harness strips it from every subagent's tool set entirely — even if declared in frontmatter `tools:` — because a subagent must complete autonomously without blocking on user interaction. So grading is YOUR job, done in plain conversation, in the main session. Follow this protocol exactly every time you run a graded question.
 
-**Step 4b's metadata tag is enforced, not just requested.** `hooks/teach/enforce-quiz-tag.mjs` denies any `AskUserQuestion` call that carries the mandatory `"I don't know"` option (step 3, below) without a valid `metadata.source` tag, once a teach session is active. If a call gets denied for this, the reason names exactly what's missing — attach it and retry the same call unchanged.
+**Step 4b's metadata tag is enforced on every `AskUserQuestion` call, not just quiz-shaped ones.** `hooks/teach/enforce-teach-tag.mjs` denies any `AskUserQuestion` call made without a valid `metadata.source` tag, once a teach session is active — this isn't limited to calls that carry the mandatory `"I don't know"` option (step 3, below); a plain non-graded question needs the `kind: "other"` shape (see `mastery-ledger-protocol.md`) just as much. If a call gets denied for this, the reason names exactly what's missing — attach it and retry the same call unchanged.
 
 ## Running a quiz question
 
@@ -54,4 +54,4 @@ There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extensio
 
 ## Non-graded questions
 
-Non-graded preference/decision questions need no protocol — just call `AskUserQuestion` directly, the same way you would for any other clarifying question.
+Non-graded preference/decision questions need no protocol — just call `AskUserQuestion` directly, the same way you would for any other clarifying question. Inside a `teach` session the only addition is the tag: attach `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "other"})}` (add `topic` once it's resolved), since the hook denies untagged calls.
