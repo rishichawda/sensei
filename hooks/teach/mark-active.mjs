@@ -3,7 +3,9 @@ import { markActive } from "./session-state.mjs";
 // scripts/mastery.mjs is only ever invoked by the teach skill's own
 // protocol (mastery-ledger-protocol.md Section A), so a Bash command
 // running it is an unambiguous, structural signal that a teach session's
-// probe/plan loop has started — no need to parse Skill tool_input.
+// probe/plan loop has started — no need to parse Skill tool_input. The marker
+// is never cleared mid-session: it is per-transcript, so it lives exactly as
+// long as the session that started the teach protocol.
 const MASTERY_CLI_PATTERN = /scripts\/mastery\.mjs/;
 
 async function main() {

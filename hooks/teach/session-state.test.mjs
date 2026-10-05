@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { markActive, isActive, clearActive } from "./session-state.mjs";
+import { markActive, isActive } from "./session-state.mjs";
 
 function freshTranscriptPath() {
   const dir = mkdtempSync(join(tmpdir(), "teach-session-state-test-"));
@@ -18,17 +18,6 @@ test("markActive then isActive returns true", () => {
   const transcript = freshTranscriptPath();
   markActive(transcript);
   assert.equal(isActive(transcript), true);
-});
-
-test("clearActive removes the marker", () => {
-  const transcript = freshTranscriptPath();
-  markActive(transcript);
-  clearActive(transcript);
-  assert.equal(isActive(transcript), false);
-});
-
-test("clearActive is a no-op (does not throw) when nothing was ever marked", () => {
-  assert.doesNotThrow(() => clearActive(freshTranscriptPath()));
 });
 
 test("marking one transcript does not affect a sibling transcript", () => {
