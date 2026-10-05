@@ -5,6 +5,7 @@ import { mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isMasteryInvocation } from "./mark-active.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./mark-active.mjs", import.meta.url));
 
@@ -58,4 +59,53 @@ test("main() ignores a non-Bash tool even if the command string mentions mastery
 
 test("main() survives unparseable JSON on stdin without crashing", () => {
   assert.doesNotThrow(() => execFileSync(process.execPath, [SCRIPT], { input: "not json" }));
+});
+
+const INVOCATIONS = [
+  'node "/plugin/scripts/mastery.mjs" topics',
+  'node "${CLAUDE_PLUGIN_ROOT}/scripts/mastery.mjs" get "javascript"',
+  "node /Users/me/sensei/scripts/mastery.mjs get-session graph-theory-basics",
+  "node scripts/mastery.mjs record some-topic node-1 seen",
+  'cd /repo && node "/plugin/scripts/mastery.mjs" topics',
+  'CLAUDE_CONFIG_DIR=/tmp/x node scripts/mastery.mjs topics',
+  'node --no-warnings "/plugin/scripts/mastery.mjs" get "t"',
+  'cd /repo\nnode scripts/mastery.mjs topics',
+  'echo start\nnode "/plugin/scripts/mastery.mjs" get "t"\necho done',
+];
+
+const NON_INVOCATIONS = [
+  'grep -n "export function setSessionPlan" -A12 scripts/mastery.mjs',
+  "git diff scripts/mastery.mjs",
+  "cat scripts/mastery.mjs",
+  "sed -n 1,20p scripts/mastery.mjs",
+  "wc -l scripts/mastery.mjs",
+  "node --test hooks/teach/mastery-record.test.mjs",
+  `node -e "import('/x/scripts/mastery.mjs')"`,
+  "echo node scripts/mastery.mjs topics",
+  "ls scripts",
+];
+
+for (const command of INVOCATIONS) {
+  test(`isMasteryInvocation is true for a real CLI run: ${command}`, () => {
+    assert.equal(isMasteryInvocation(command), true);
+  });
+}
+
+for (const command of NON_INVOCATIONS) {
+  test(`isMasteryInvocation is false for a command that only mentions or reads the file: ${command}`, () => {
+    assert.equal(isMasteryInvocation(command), false);
+  });
+}
+
+test("main() does not mark active for a grep of scripts/mastery.mjs, so a dev session reading the file is never enforced", () => {
+  const transcript = freshTranscriptPath();
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "Bash",
+      tool_input: { command: "grep -n recordNode scripts/mastery.mjs" },
+      transcript_path: transcript,
+    }),
+  });
+  assert.equal(existsSync(markerPathFor(transcript)), false);
 });
