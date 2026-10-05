@@ -312,6 +312,44 @@ test("main() touches that topic's session for a 'kind: other' event that does in
   });
 });
 
+test("main() writes a diagnostic and no ledger for a non-'other' kind that is missing its topic", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const source = JSON.stringify({ app: "sensei-teach", v: 1, kind: "goal", goal: "understand fundamentals" });
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Goal?", options: [{ label: "a" }, { label: "b" }] }], metadata: { source } },
+      tool_response: { answers: { "Goal?": "a" } },
+    }),
+    env,
+  });
+  const lines = readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").trim().split("\n");
+  const entry = JSON.parse(lines[lines.length - 1]);
+  assert.match(entry.diagnostic, /goal.*topic/);
+  withEnv(env, () => assert.equal(existsSync(ledgersDir()), false, "a topicless goal event must not create any ledger"));
+});
+
+test("main() does not crash on a null option entry and still records the event", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const source = JSON.stringify({ app: "sensei-teach", v: 1, kind: "other", topic: "javascript" });
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Pick?", options: [null, { label: "b" }] }], metadata: { source } },
+      tool_response: { answers: { "Pick?": "b" } },
+    }),
+    env,
+  });
+  withEnv(env, () => {
+    const ledger = JSON.parse(readFileSyncNode(topicLedgerPath("javascript"), "utf8"));
+    assert.ok(ledger.session);
+  });
+});
+
 function withEnv(env, fn) {
   const original = process.env.CLAUDE_CONFIG_DIR;
   process.env.CLAUDE_CONFIG_DIR = env.CLAUDE_CONFIG_DIR;

@@ -115,9 +115,14 @@ async function main() {
   if (!event) return;
   if (!question) return;
   const answerText = payload.tool_response?.answers?.[question.question];
-  const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o.label) : [];
+  const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];
 
-  if (!event.topic) return;
+  if (!event.topic) {
+    if (event.kind !== "other") {
+      appendDebugLine({ timestamp: new Date().toISOString(), diagnostic: `teach: "${event.kind}" event is missing its topic, nothing recorded`, question: truncate(question.question) });
+    }
+    return;
+  }
 
   const topicSlug = slugify(event.topic);
   const topicLedger = readTopicLedger(topicSlug);
