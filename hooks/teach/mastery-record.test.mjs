@@ -5,8 +5,8 @@ import { existsSync, mkdtempSync, readFileSync as readFileSyncNode } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseTeachEvent, gradeAnswer, applyTeachEvent, APPROVAL_LABEL, truncate } from "./mastery-record.mjs";
-import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath } from "../../scripts/mastery.mjs";
+import { parseTeachEvent, gradeAnswer, applyTeachEvent, truncate } from "./mastery-record.mjs";
+import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath, ledgersDir } from "../../scripts/mastery.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./mastery-record.mjs", import.meta.url));
 
@@ -115,14 +115,36 @@ test("applyTeachEvent sets the goal for a 'goal' event", () => {
   assert.equal(getSession(ledger).goal, "understand fundamentals");
 });
 
-test("applyTeachEvent sets the plan for a 'plan' event only when the answer matches the canonical approval label", () => {
+test("applyTeachEvent sets the plan for a 'plan' event when the answer matches the single offered option, for any wording", () => {
   const plan = { nodes: ["primitives"], edges: [] };
   const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
-  const approved = applyTeachEvent(emptyTopicLedger(), event, APPROVAL_LABEL, [APPROVAL_LABEL, "I have changes"], new Date("2026-01-01T00:00:00.000Z"));
+  const approved = applyTeachEvent(emptyTopicLedger(), event, "Sounds great, let's begin", ["Sounds great, let's begin"], new Date("2026-01-01T00:00:00.000Z"));
   assert.equal(approved.ledger.session.status, "planned");
 
-  const declined = applyTeachEvent(emptyTopicLedger(), event, "I have changes", [APPROVAL_LABEL, "I have changes"], new Date("2026-01-01T00:00:00.000Z"));
-  assert.equal(declined.ledger.session.status, "intake", "declining approval must not set the plan");
+  const approvedDifferentWording = applyTeachEvent(emptyTopicLedger(), event, "Yep, go ahead", ["Yep, go ahead"], new Date("2026-01-01T00:00:00.000Z"));
+  assert.equal(approvedDifferentWording.ledger.session.status, "planned", "approval must not depend on any specific wording");
+});
+
+test("applyTeachEvent does not set the plan when the answer came from 'Other' (decline/feedback), regardless of the offered option's wording", () => {
+  const plan = { nodes: ["primitives"], edges: [] };
+  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
+  const declined = applyTeachEvent(emptyTopicLedger(), event, "Actually let's change the order first", ["Sounds great, let's begin"], new Date("2026-01-01T00:00:00.000Z"));
+  assert.equal(declined.ledger.session.status, "intake", "an 'Other' answer must not match the single offered option");
+});
+
+test("applyTeachEvent returns a diagnostic and does not set the plan when a 'plan' event carries more than one real option", () => {
+  const plan = { nodes: ["primitives"], edges: [] };
+  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
+  const result = applyTeachEvent(emptyTopicLedger(), event, "Looks good", ["Looks good", "Not yet"], new Date("2026-01-01T00:00:00.000Z"));
+  assert.match(result.diagnostic, /exactly one option/);
+  assert.equal(result.ledger.session.status, "intake", "a malformed approval call must leave the session unplanned");
+});
+
+test("applyTeachEvent returns a diagnostic and does not set the plan when a 'plan' event carries zero real options", () => {
+  const plan = { nodes: ["primitives"], edges: [] };
+  const event = { app: "sensei-teach", v: 1, kind: "plan", topic: "javascript", plan };
+  const result = applyTeachEvent(emptyTopicLedger(), event, "n/a", [], new Date("2026-01-01T00:00:00.000Z"));
+  assert.match(result.diagnostic, /exactly one option/);
 });
 
 test("main() survives unparseable JSON on stdin without crashing", () => {
@@ -240,6 +262,44 @@ test("main() logs the raw (truncated) metadata.source when present but not teach
   const entry = JSON.parse(lines[lines.length - 1]);
   assert.equal(entry.tagged, false);
   assert.equal(entry.sourceRaw, "remember");
+});
+
+test("main() logs tagged:true and writes no ledger file for a 'kind: other' event with no topic", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const source = JSON.stringify({ app: "sensei-teach", v: 1, kind: "other" });
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Which topic did you mean?", options: [{ label: "networking" }, { label: "home-networking" }] }], metadata: { source } },
+      tool_response: { answers: { "Which topic did you mean?": "networking" } },
+    }),
+    env,
+  });
+  const lines = readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").trim().split("\n");
+  const entry = JSON.parse(lines[lines.length - 1]);
+  assert.equal(entry.tagged, true);
+  withEnv(env, () => assert.equal(existsSync(ledgersDir()), false, "no ledgers directory must be created at all for a topicless event — nothing was ever read or written"));
+});
+
+test("main() touches that topic's session for a 'kind: other' event that does include a topic", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const source = JSON.stringify({ app: "sensei-teach", v: 1, kind: "other", topic: "javascript" });
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Sub-area?", options: [{ label: "closures" }] }], metadata: { source } },
+      tool_response: { answers: { "Sub-area?": "closures" } },
+    }),
+    env,
+  });
+  withEnv(env, () => {
+    const ledger = JSON.parse(readFileSyncNode(topicLedgerPath("javascript"), "utf8"));
+    assert.ok(ledger.session, "a 'kind: other' event with a topic must still touch that topic's session row");
+  });
 });
 
 function withEnv(env, fn) {

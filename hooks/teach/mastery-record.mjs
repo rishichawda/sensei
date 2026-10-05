@@ -2,7 +2,6 @@ import { readTopicLedger, writeTopicLedger, recordNode, touchSession, setSession
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-export const APPROVAL_LABEL = "Looks good — let's start";
 const DEBUG_LOG_MAX_LINES = 200;
 
 export function parseTeachEvent(sourceRaw) {
@@ -53,7 +52,10 @@ export function applyTeachEvent(topicLedger, event, answerText, optionLabels, no
   }
 
   if (event.kind === "plan") {
-    if (answerText === APPROVAL_LABEL) {
+    if (optionLabels.length !== 1) {
+      return { ledger: next, diagnostic: `teach: plan-approval call must carry exactly one option, got ${optionLabels.length}` };
+    }
+    if (answerText === optionLabels[0]) {
       next = setSessionPlan(next, event.plan, now);
     }
     return { ledger: next };
@@ -114,6 +116,8 @@ async function main() {
   if (!question) return;
   const answerText = payload.tool_response?.answers?.[question.question];
   const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o.label) : [];
+
+  if (!event.topic) return;
 
   const topicSlug = slugify(event.topic);
   const topicLedger = readTopicLedger(topicSlug);
