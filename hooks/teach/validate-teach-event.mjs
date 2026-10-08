@@ -20,7 +20,7 @@ export function validateTeachEvent(event, questions) {
   const qs = Array.isArray(questions) ? questions : [];
   const labels = Array.isArray(qs[0]?.options) ? qs[0].options.map((o) => o?.label) : [];
   const requireLabel = (field) => {
-    if (qs.length > 0 && !labels.includes(event[field])) {
+    if (qs.length > 0 && !(isText(event[field]) && labels.includes(event[field]))) {
       problems.push(`${at}: ${field} ${JSON.stringify(event[field])} matches none of the option labels ${JSON.stringify(labels)}; set it to the exact label of the ${field === "correct" ? "correct" : "approval"} option`);
     }
   };

@@ -59,6 +59,8 @@ const INVALID = [
   ["node correct differs by case", { ...node, correct: "b" }, one("A", "B"), [/^node tag: correct "b" matches none/]],
   ["node correct differs by trailing space", { ...node, correct: "B " }, one("A", "B"), [/^node tag: correct "B " matches none/]],
   ["node correct missing", { ...node, correct: undefined }, ABC, [/^node tag: correct undefined matches none/]],
+  ["node correct missing while an option has no label", { ...node, correct: undefined }, [{ question: "Q?", options: [{ description: "x" }, { label: "B" }] }], [/^node tag: correct undefined matches none/]],
+  ["plan approve missing while an option has no label", { ...plan, approve: undefined }, [{ question: "Q?", options: [{ description: "x" }, { label: "Looks good" }] }], [/^plan tag: approve undefined matches none/]],
   ["node with options missing", { ...node }, [{ question: "Q?" }], [/^node tag: correct "B" matches none of the option labels \[\]/]],
 
   ["plan without topic", { ...plan, topic: undefined }, APPROVE, [/^plan tag: topic must be a non-empty string/]],
