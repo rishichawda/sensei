@@ -49,7 +49,7 @@ There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extensio
 ## Known limitations of this protocol
 
 - **No automatic shuffling.** If option order matters for hygiene (not always putting the correct answer first), vary it yourself when you write the options.
-- **No structured "note" field.** `AskUserQuestion` natively supports multi-select and an "Other" free-text option — you don't need to build either yourself — but "Other" returns unstructured free text, not a separate field alongside the graded verdict. If the user wants to add a comment, they'll do it via "Other" or in their next normal message — read it as you would any other reply.
+- **No structured "note" field.** `AskUserQuestion` natively supports multi-select and an "Other" free-text option — you don't need to build either yourself — but "Other" returns unstructured free text, not a separate field alongside the graded verdict. On a graded question the hook only matches an exact option label, so a correct answer typed into "Other" is recorded as `failed`. If the user wants to add a comment, they'll do it via "Other" or in their next normal message — read it as you would any other reply.
 - **No inline colorized ✓/✗ list.** The verdict lives in your prose reply, not in a rendered tool result.
 
 ## Non-graded questions
