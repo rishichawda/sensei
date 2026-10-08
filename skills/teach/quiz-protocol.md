@@ -39,7 +39,7 @@ There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extensio
    - **Single-select only** (`multiSelect: false` or omitted). Multi-select answers collapse into a comma-joined string that can't be graded reliably — if a concept genuinely needs more than one correct answer, split it into separate single-select questions rather than one multi-select call.
    - **One teach-graded node per `AskUserQuestion` call.** Never batch more than one teach-graded node's question into the same multi-question call — `metadata`/`answers` both key ambiguously across more than one node per call.
 5. **When the tool returns the user's selection(s):**
-   - If they picked "I don't know": this is a genuine knowledge gap, not a wrong guess. Say so plainly — do not treat it as incorrect.
+   - If they picked "I don't know": this is a genuine knowledge gap, not a wrong guess. Say so plainly — do not treat it as incorrect. (The ledger still records it as `failed`, which is what makes the next session probe that node first.)
    - Otherwise, compare their selection(s) against the correct answer you decided in step 1. For multi-select, it's correct only if they picked every correct option and no incorrect one.
 6. **State the verdict yourself, in your own next message**, using this shape:
    - `✓ Correct.` or `✗ Incorrect.` (or, for "I don't know": state that plainly, no ✗)
