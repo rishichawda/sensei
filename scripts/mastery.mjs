@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, readdir
 import { dirname, resolve } from "node:path";
 
 const LEDGER_VERSION = 1;
-const PROBE_LOG_MAX = 50;
+const PROBE_LOG_MAX = 20;
 
 export function slugify(text) {
   const cleaned = String(text)
@@ -179,7 +179,14 @@ function main() {
       console.error("Usage: mastery.mjs get-session <topic>");
       process.exit(1);
     }
-    console.log(JSON.stringify(deriveSession(readTopicLedger(slugify(topicArg)))));
+    const session = deriveSession(readTopicLedger(slugify(topicArg)));
+    if (session && session.status !== "intake") {
+      // Resume skips Phase 1 for these rows, so the probe log is only token cost here.
+      const { probes, ...withoutProbes } = session;
+      console.log(JSON.stringify(withoutProbes));
+    } else {
+      console.log(JSON.stringify(session));
+    }
     return;
   }
 

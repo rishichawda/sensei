@@ -174,14 +174,14 @@ test("addProbe appends to an existing probe log without disturbing goal/dependen
   ]);
 });
 
-test("addProbe caps the log at the most recent 50 entries", () => {
+test("addProbe caps the log at the most recent 20 entries", () => {
   let topicLedger = emptyTopicLedger();
-  for (let i = 0; i < 55; i++) {
+  for (let i = 0; i < 25; i++) {
     topicLedger = addProbe(topicLedger, { question: `Q${i}`, answer: "A" }, new Date("2026-01-01T00:00:00.000Z"));
   }
-  assert.equal(topicLedger.session.probes.length, 50);
+  assert.equal(topicLedger.session.probes.length, 20);
   assert.equal(topicLedger.session.probes[0].question, "Q5");
-  assert.equal(topicLedger.session.probes[49].question, "Q54");
+  assert.equal(topicLedger.session.probes[19].question, "Q24");
 });
 
 test("setSessionGoal creates the session row if missing and sets the goal", () => {
@@ -723,4 +723,51 @@ test("ledgersDir throws a labeled error, not a raw TypeError, when CLAUDE_CONFIG
     if (originalHome === undefined) delete process.env.HOME;
     else process.env.HOME = originalHome;
   }
+});
+
+function cliGetSession(configDir) {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  return JSON.parse(execFileSync("node", [SCRIPT, "get-session", "JavaScript"], { env }).toString());
+}
+
+function ledgerWithProbes(status) {
+  let tl = addProbe(emptyTopicLedger(), { question: "Q", answer: "A", result: "passed" }, T1);
+  tl = setSessionGoal(tl, "learn closures", T1);
+  if (status !== "intake") {
+    tl = setSessionPlan(tl, { nodes: ["a", "b"], edges: [] }, T1);
+    if (status === "in-progress") tl = recordNode(tl, "a", "failed", T1);
+    if (status === "complete") tl = recordNode(recordNode(tl, "a", "passed", T1), "b", "passed", T1);
+  }
+  return tl;
+}
+
+test("CLI get-session prints the probe log for an intake row", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => writeTopicLedger("javascript", ledgerWithProbes("intake")));
+  const printed = cliGetSession(configDir);
+  assert.equal(printed.status, "intake");
+  assert.equal(printed.probes.length, 1);
+});
+
+for (const status of ["planned", "in-progress", "complete"]) {
+  test(`CLI get-session omits the probe log for a ${status} row, and does not rewrite the ledger`, () => {
+    const configDir = freshConfigDir();
+    withConfigDir(configDir, () => writeTopicLedger("javascript", ledgerWithProbes(status)));
+    const file = join(configDir, "sensei", "ledgers", "javascript.json");
+    const before = readFileSync(file, "utf8");
+    const printed = cliGetSession(configDir);
+    assert.equal(printed.status, status);
+    assert.equal("probes" in printed, false);
+    assert.equal(printed.goal, "learn closures");
+    assert.equal(readFileSync(file, "utf8"), before);
+    assert.equal(JSON.parse(before).session.probes.length, 1, "the stored row keeps its probes");
+  });
+}
+
+test("CLI get-session does not throw on an intake row whose probes value is malformed", () => {
+  const configDir = freshConfigDir();
+  let tl = touchSession(emptyTopicLedger(), T1);
+  tl = { ...tl, session: { ...tl.session, probes: "not an array" } };
+  withConfigDir(configDir, () => writeTopicLedger("javascript", tl));
+  assert.equal(cliGetSession(configDir).status, "intake");
 });
