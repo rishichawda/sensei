@@ -43,7 +43,7 @@ Phase 1a's probes don't attach to node IDs — they're logged in the session row
 
 1. If Section A's lookup returned `passed` for a node's ID: mark it `*(already covered)*` in the map, and keep its Phase 3 treatment brief rather than dropping it from the map or re-teaching it in full.
 2. If a node shows `seen`: that came from some other unquiz-checked touch (not from Phase 1a probing, which never targets a node ID) — treat it exactly like a node with no record at all for planning purposes.
-3. You do not write anything here. If you expect the ledger to reflect something a Phase 1a probe established and it doesn't show up, remember it lives in the session row's `probes` (printed by `get-session`), not in the per-node entries `get` prints — check there, or `mastery-hook-debug.log` for a `tagged: false` entry around that question, before assuming the ledger itself is wrong.
+3. You do not write anything here. If you expect the ledger to reflect something a Phase 1a probe established and it doesn't show up, remember it lives in the session row's `probes` (printed by `get-session`), not in the per-node entries `get` prints — check there, or `~/.claude/sensei/mastery-hook-debug.log` (under `$CLAUDE_CONFIG_DIR/sensei/` if that is set) for a `tagged: false` entry around that question, before assuming the ledger itself is wrong.
 
 **Before moving on, confirm:**
 - [ ] Checked every node in the map against the ledger, before presenting the plan.
@@ -57,5 +57,5 @@ Read this at Phase 3, to understand what happens after each quiz-check — not t
 The moment you run a quiz-check's `AskUserQuestion` call with the right `metadata.source` (per `quiz-protocol.md`), `hooks/teach/mastery-record.mjs` grades it against the `correct` value you supplied and writes `passed`/`failed` — you do not run a separate `record` command. It also advances `sessions[topic].nextNodeId` for you when a `passed` lands on the current frontier node.
 
 **Before moving on, confirm:**
-- [ ] The quiz-check's `AskUserQuestion` call included `metadata.source` with the right `topic`/`node`/`correct` — if you're unsure it did, check `mastery-hook-debug.log` for a `tagged: false` entry rather than assuming the write happened.
+- [ ] The quiz-check's `AskUserQuestion` call included `metadata.source` with the right `topic`/`node`/`correct` — if you're unsure it did, check `~/.claude/sensei/mastery-hook-debug.log` (under `$CLAUDE_CONFIG_DIR/sensei/` if that is set) for a `tagged: false` entry rather than assuming the write happened.
 - [ ] Used the same `<topic>` string resolved in Section A inside that metadata.
