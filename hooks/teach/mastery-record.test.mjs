@@ -101,13 +101,48 @@ test("applyTeachEvent returns a diagnostic and does not write a bogus failed whe
   assert.equal(getTopic(result.ledger)["dynamic-typing"], undefined, "no bogus failed/passed status must be written");
 });
 
-test("applyTeachEvent logs a Phase 1a probe and creates the session row, with no node ID required", () => {
-  const event = { app: "sensei-teach", v: 1, kind: "probe", topic: "powershell-scripting" };
-  const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), event, "Not sure", ["A", "B", "I don't know"], new Date("2026-01-01T00:00:00.000Z"), "What's a cmdlet?");
+const PROBE_OPTIONS = ["A", "B", "I don't know"];
+const probeEvent = (extra = {}) => ({ app: "sensei-teach", v: 1, kind: "probe", topic: "powershell-scripting", correct: "A", ...extra });
+const PROBE_NOW = new Date("2026-01-01T00:00:00.000Z");
+
+test("applyTeachEvent logs a Phase 1b probe with a passed result and creates the session row, with no node ID required", () => {
+  const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), probeEvent(), "A", PROBE_OPTIONS, PROBE_NOW, "What's a cmdlet?");
   assert.equal(diagnostic, undefined);
   const session = getSession(ledger);
   assert.equal(session.status, "intake");
-  assert.deepEqual(session.probes, [{ question: "What's a cmdlet?", answer: "Not sure", at: "2026-01-01T00:00:00.000Z" }]);
+  assert.deepEqual(session.probes, [{ question: "What's a cmdlet?", answer: "A", result: "passed", at: "2026-01-01T00:00:00.000Z" }]);
+});
+
+test("applyTeachEvent stores failed for a wrong option, for I don't know, and for free-text Other", () => {
+  for (const answer of ["B", "I don't know", "something I typed myself"]) {
+    const { ledger } = applyTeachEvent(emptyTopicLedger(), probeEvent(), answer, PROBE_OPTIONS, PROBE_NOW, "Q?");
+    assert.equal(getSession(ledger).probes[0].result, "failed", answer);
+  }
+});
+
+test("applyTeachEvent truncates a long probe question and a long free-text answer to 150 characters", () => {
+  const long = "x".repeat(400);
+  const { ledger } = applyTeachEvent(emptyTopicLedger(), probeEvent(), long, PROBE_OPTIONS, PROBE_NOW, long);
+  const [entry] = getSession(ledger).probes;
+  assert.equal(entry.question.length, 151, "150 characters plus the ellipsis");
+  assert.equal(entry.answer.length, 151);
+  assert.ok(entry.question.endsWith("…") && entry.answer.endsWith("…"));
+});
+
+test("applyTeachEvent stores nothing and returns a diagnostic for a probe whose correct matches no option", () => {
+  const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), probeEvent({ correct: "Z" }), "A", PROBE_OPTIONS, PROBE_NOW, "Q?");
+  assert.match(diagnostic, /probe correct value "Z" does not match any option label/);
+  assert.equal(getSession(ledger)?.probes, undefined, "no probe may be stored");
+});
+
+test("applyTeachEvent appends to a log that holds an old entry with no result, and leaves that entry as it was", () => {
+  const old = { question: "Old Q", answer: "Old A", at: "2025-12-01T00:00:00.000Z" };
+  let tl = touchSession(emptyTopicLedger(), PROBE_NOW);
+  tl = { ...tl, session: { ...tl.session, probes: [old] } };
+  const { ledger } = applyTeachEvent(tl, probeEvent(), "A", PROBE_OPTIONS, PROBE_NOW, "New Q");
+  const probes = getSession(ledger).probes;
+  assert.deepEqual(probes[0], old);
+  assert.equal(probes[1].result, "passed");
 });
 
 test("applyTeachEvent sets the goal for a 'goal' event", () => {

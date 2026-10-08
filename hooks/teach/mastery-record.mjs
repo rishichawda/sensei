@@ -43,7 +43,11 @@ export function applyTeachEvent(topicLedger, event, answerText, optionLabels, no
   }
 
   if (event.kind === "probe") {
-    next = addProbe(next, { question: questionText, answer: answerText }, now);
+    const result = gradeAnswer(event, answerText, optionLabels);
+    if (result === "invalid") {
+      return { ledger: next, diagnostic: `teach: probe correct value "${event.correct}" does not match any option label` };
+    }
+    next = addProbe(next, { question: truncate(questionText), answer: truncate(answerText), result }, now);
     return { ledger: next };
   }
 
