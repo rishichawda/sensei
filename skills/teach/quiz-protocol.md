@@ -2,7 +2,7 @@
 
 There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extension point for outside code to add grading logic, and the harness strips it from every subagent's tool set entirely — even if declared in frontmatter `tools:` — because a subagent must complete autonomously without blocking on user interaction. So grading is YOUR job, done in plain conversation, in the main session. Follow this protocol exactly every time you run a graded question.
 
-**Step 4b's metadata tag is enforced on every `AskUserQuestion` call, not just quiz-shaped ones.** `hooks/teach/enforce-teach-tag.mjs` denies any `AskUserQuestion` call made without a valid `metadata.source` tag, once a teach session is active — this isn't limited to calls that carry the mandatory `"I don't know"` option (step 3, below); a plain non-graded question needs the `kind: "other"` shape (see `mastery-ledger-protocol.md`) just as much. If a call gets denied for this, the reason names exactly what's missing — attach it and retry the same call unchanged.
+**Step 4b's metadata tag is enforced on every `AskUserQuestion` call, not just quiz-shaped ones.** `hooks/teach/enforce-teach-tag.mjs` denies any `AskUserQuestion` call made without a valid `metadata.source` tag, once a teach session is active — this isn't limited to calls that carry the mandatory `"I don't know"` option (step 3, below); a plain non-graded question needs the `kind: "other"` shape (see `mastery-ledger-protocol.md`) just as much. If a call gets denied for this, the reason says what to fix: for a missing tag it lists the tag shapes to attach, and for a malformed tag it names each wrong field — attach or fix the tag and retry the same call. A tagged call is checked even before the session is active. A `probe`, `goal`, `node` or `plan` call must carry exactly one single-select question, because the hook records only the first question; only an `other` call may carry several.
 
 ## Running a quiz question
 
@@ -37,7 +37,7 @@ There is no `quiz` tool — Claude Code's `AskUserQuestion` tool has no extensio
 
    Two hard constraints both shapes depend on:
    - **Single-select only** (`multiSelect: false` or omitted). Multi-select answers collapse into a comma-joined string that can't be graded reliably — if a concept genuinely needs more than one correct answer, split it into separate single-select questions rather than one multi-select call.
-   - **One teach-graded node per `AskUserQuestion` call.** Never batch more than one teach-graded node's question into the same multi-question call — `metadata`/`answers` both key ambiguously across more than one node per call.
+   - **One teach-graded node per `AskUserQuestion` call.** Never batch more than one teach-graded node's question into the same multi-question call — `metadata`/`answers` both key ambiguously across more than one node per call. The same holds for the `probe`, `goal` and `plan` kinds: one question per call, or the hook denies the call.
 5. **When the tool returns the user's selection(s):**
    - If they picked "I don't know": this is a genuine knowledge gap, not a wrong guess. Say so plainly — do not treat it as incorrect. (The ledger still records it as `failed`, which is what makes the next session probe that node first.)
    - Otherwise, compare their selection(s) against the correct answer you decided in step 1. For multi-select, it's correct only if they picked every correct option and no incorrect one.
