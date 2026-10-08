@@ -221,3 +221,10 @@ test("the missing-tag reason lists the wrap shape", () => {
   const decision = checkDeny({ hook_event_name: "PreToolUse", tool_name: "AskUserQuestion", tool_input: questionWithOptions(["A", "B"]), transcript_path: transcript });
   assert.match(decision.hookSpecificOutput.permissionDecisionReason, /kind:"wrap", topic:"<topic>", done:"<exact label of the done option>"/);
 });
+
+test("the missing-tag reason says a goal tag is not for confirming a stored goal", () => {
+  const transcript = freshTranscriptPath();
+  markActive(transcript);
+  const decision = checkDeny({ hook_event_name: "PreToolUse", tool_name: "AskUserQuestion", tool_input: questionWithOptions(["A", "B"]), transcript_path: transcript });
+  assert.match(decision.hookSpecificOutput.permissionDecisionReason, /for the goal-concretizing call \(never to confirm a stored goal: it starts a new session\)/);
+});
