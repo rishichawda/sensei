@@ -110,3 +110,97 @@ test("main() prints nothing for a validly tagged call", () => {
 test("main() survives unparseable JSON on stdin without crashing", () => {
   assert.doesNotThrow(() => execFileSync(process.execPath, [SCRIPT], { input: "not json" }));
 });
+
+function taggedCall(event, questions, transcript) {
+  return {
+    hook_event_name: "PreToolUse",
+    tool_name: "AskUserQuestion",
+    tool_input: { questions, metadata: { source: JSON.stringify(event) } },
+    transcript_path: transcript,
+  };
+}
+
+const NODE_TAG = { app: "sensei-teach", v: 1, kind: "node", topic: "dns", node: "n1", recordAs: "graded", correct: "B" };
+
+test("checkDeny denies a malformed tag with a reason that names the problem, in an active session", () => {
+  const transcript = freshTranscriptPath();
+  markActive(transcript);
+  const decision = checkDeny(taggedCall({ ...NODE_TAG, correct: "Z" }, questionWithOptions(["A", "B", "I don't know"]).questions, transcript));
+  assert.equal(decision.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(decision.hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(
+    decision.hookSpecificOutput.permissionDecisionReason,
+    'This AskUserQuestion call has a malformed sensei-teach tag: node tag: correct "Z" matches none of the option labels ["A","B","I don\'t know"]; set it to the exact label of the correct option. Fix the tag and retry the same call.',
+  );
+});
+
+test("checkDeny denies a malformed tag even when the session is not active", () => {
+  const transcript = freshTranscriptPath();
+  const decision = checkDeny(taggedCall({ ...NODE_TAG, topic: undefined }, questionWithOptions(["A", "B"]).questions, transcript));
+  assert.equal(decision.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(decision.hookSpecificOutput.permissionDecisionReason, /malformed sensei-teach tag: node tag: topic must be a non-empty string\. Fix the tag/);
+});
+
+test("checkDeny denies a malformed tag when the payload has no transcript_path", () => {
+  const decision = checkDeny(taggedCall({ ...NODE_TAG, v: "1" }, questionWithOptions(["A", "B"]).questions, undefined));
+  assert.equal(decision.hookSpecificOutput.permissionDecision, "deny");
+});
+
+test("checkDeny joins several problems in one reason", () => {
+  const transcript = freshTranscriptPath();
+  const questions = [...questionWithOptions(["A", "B"]).questions, ...questionWithOptions(["A", "B"]).questions];
+  const decision = checkDeny(taggedCall({ ...NODE_TAG, correct: "Z" }, questions, transcript));
+  const reason = decision.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /call has 2 questions; send exactly one question per call; node tag: correct "Z" matches none/);
+});
+
+test("checkDeny denies a tagged call with no questions and does not throw", () => {
+  const transcript = freshTranscriptPath();
+  markActive(transcript);
+  for (const questions of [undefined, [], "x"]) {
+    const decision = checkDeny(taggedCall({ app: "sensei-teach", v: 1, kind: "probe", topic: "dns" }, questions, transcript));
+    assert.equal(decision.hookSpecificOutput.permissionDecision, "deny");
+  }
+});
+
+test("checkDeny allows a valid tag of every recorded kind, active or not", () => {
+  const events = [
+    [{ app: "sensei-teach", v: 1, kind: "probe", topic: "dns" }, ["A", "B"]],
+    [{ app: "sensei-teach", v: 1, kind: "goal", topic: "dns", goal: "g" }, ["A", "B"]],
+    [NODE_TAG, ["A", "B", "I don't know"]],
+    [{ app: "sensei-teach", v: 1, kind: "plan", topic: "dns", approve: "Looks good", plan: { nodes: ["a", "b"], edges: [["a", "b"]] } }, ["Looks good", "I have changes"]],
+    [{ app: "sensei-teach", v: 1, kind: "other" }, ["A", "B"]],
+  ];
+  for (const active of [false, true]) {
+    for (const [event, labels] of events) {
+      const transcript = freshTranscriptPath();
+      if (active) markActive(transcript);
+      assert.equal(checkDeny(taggedCall(event, questionWithOptions(labels).questions, transcript)), null, `${event.kind} active=${active}`);
+    }
+  }
+});
+
+test("checkDeny still treats unparseable or foreign metadata.source as untagged: denied when active, allowed when not", () => {
+  const transcript = freshTranscriptPath();
+  const call = (source) => ({
+    hook_event_name: "PreToolUse",
+    tool_name: "AskUserQuestion",
+    tool_input: { ...questionWithOptions(["A", "B"]), metadata: { source } },
+    transcript_path: transcript,
+  });
+  assert.equal(checkDeny(call("not json")), null);
+  assert.equal(checkDeny(call(JSON.stringify({ app: "other-app", v: 1 }))), null);
+  markActive(transcript);
+  assert.equal(checkDeny(call("not json")).hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(checkDeny(call(JSON.stringify({ app: "other-app", v: 1 }))).hookSpecificOutput.permissionDecision, "deny");
+});
+
+test("main() prints a deny decision end-to-end for a malformed tag", () => {
+  const transcript = freshTranscriptPath();
+  const out = execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify(taggedCall({ ...NODE_TAG, correct: "Z" }, questionWithOptions(["A", "B"]).questions, transcript)),
+  });
+  const parsed = JSON.parse(out.toString());
+  assert.equal(parsed.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(parsed.hookSpecificOutput.permissionDecisionReason, /^This AskUserQuestion call has a malformed sensei-teach tag:/);
+});
