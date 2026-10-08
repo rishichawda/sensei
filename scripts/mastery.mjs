@@ -94,7 +94,17 @@ export function touchSession(topicLedger, now = new Date()) {
   return { ...topicLedger, session };
 }
 
+// A goal event on a session that is already past intake means the learner
+// wants something else: start a fresh session row (per-node mastery is kept)
+// so the old plan and status can neither hide the new goal nor resume it.
 export function setSessionGoal(topicLedger, goal, now = new Date()) {
+  const session = getSession(topicLedger);
+  if (session && session.status !== "intake") {
+    return {
+      ...topicLedger,
+      session: { goal, dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: now.toISOString() },
+    };
+  }
   const base = touchSession(topicLedger, now);
   return { ...base, session: { ...base.session, goal, updatedAt: now.toISOString() } };
 }

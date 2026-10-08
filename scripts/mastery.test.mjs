@@ -192,12 +192,30 @@ test("setSessionGoal creates the session row if missing and sets the goal", () =
   });
 });
 
-test("setSessionGoal overwrites a prior goal on an existing row without disturbing dependencyMap", () => {
-  let topicLedger = setSessionPlan(emptyTopicLedger(), { nodes: ["a", "b"], edges: [["a", "b"]] }, new Date("2026-01-01T00:00:00.000Z"));
-  topicLedger = setSessionGoal(topicLedger, "revised goal", new Date("2026-02-01T00:00:00.000Z"));
-  assert.equal(topicLedger.session.goal, "revised goal");
-  assert.deepEqual(topicLedger.session.dependencyMap, { nodes: ["a", "b"], edges: [["a", "b"]] }, "setSessionGoal must not touch dependencyMap");
+test("setSessionGoal on an intake row sets the goal, keeps the logged probes, and may be called again", () => {
+  let tl = addProbe(emptyTopicLedger(), { question: "Q", answer: "A" }, T1);
+  tl = setSessionGoal(tl, "first goal", T2);
+  assert.equal(tl.session.goal, "first goal");
+  assert.equal(tl.session.status, "intake");
+  assert.equal(tl.session.probes.length, 1);
+  tl = setSessionGoal(tl, "narrowed goal", T2);
+  assert.equal(tl.session.goal, "narrowed goal");
+  assert.equal(tl.session.probes.length, 1, "a second goal call during intake must not wipe the probes");
 });
+
+for (const status of ["planned", "in-progress", "complete"]) {
+  test(`setSessionGoal on a ${status} row starts a fresh intake session and keeps per-node mastery`, () => {
+    let tl = setSessionGoal(emptyTopicLedger(), "old goal", T1);
+    tl = setSessionPlan(tl, { nodes: ["a", "b"], edges: [["a", "b"]] }, T1);
+    tl = addProbe(tl, { question: "Q", answer: "A" }, T1);
+    tl = recordNode(tl, "a", "passed", T1);
+    tl = { ...tl, session: { ...tl.session, status } };
+    const result = setSessionGoal(tl, "new goal", T2);
+    assert.deepEqual(result.session, { goal: "new goal", dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: T2.toISOString() });
+    assert.deepEqual(result.nodes, tl.nodes, "per-node mastery must survive a new goal");
+    assert.equal(tl.session.goal, "old goal", "the input ledger must not be mutated");
+  });
+}
 
 test("setSessionPlan sets dependencyMap, points nextNodeId at the first node, and flips status to planned", () => {
   const now = new Date("2026-01-01T00:00:00.000Z");
