@@ -45,7 +45,7 @@ Dispatch the maker with the Agent tool, setting `subagent_type` to the maker's p
 - `subagent_type: sensei:mermaid-maker`, prompt: `<your minimal, concrete brief>`
 - `subagent_type: sensei:svg-maker`, prompt: `<your minimal, concrete brief>`
 
-The maker renders through this plugin's bundled `scripts/render-mermaid.sh` / `scripts/render-svg.sh` and `scripts/publish.sh`, using its own `Read`/`Write`/`Edit`/`Bash` tools — it authors the source, renders it to a PNG, **looks at the PNG and iterates until it is correct and clean**, publishes it into the vault with a unique filename, and returns:
+The maker renders through this plugin's bundled `scripts/render-mermaid.sh` / `scripts/render-svg.sh` and `scripts/publish.sh`, using its own `Read`/`Write`/`Edit`/`Bash` tools — it authors the source, renders it to a PNG, **looks at the PNG and iterates until it is correct and clean**, publishes it to a `viz/` folder under the current working directory with a unique filename, and returns:
 
 ```
 RESULT:
@@ -63,7 +63,7 @@ Put the embed directly in your teaching reply as a standard markdown image, usin
 ![diagram](viz/viz-<slug>-<digits>.png)
 ```
 
-If `/sensei:md-log` was linked earlier in this conversation, prefer the Obsidian wikilink embed convention instead (`![[viz-<slug>-<digits>.png|500]]`) so it renders inline there too — that's the actual available signal (there's no other way to check whether md-log is linked), not a general "check which convention applies." Introduce the visual in a sentence, then let it carry the idea — don't narrate every element back in prose.
+If `/sensei:md-log` was linked earlier in this conversation, prefer the Obsidian wikilink embed convention instead (`![[viz-<slug>-<digits>.png|500]]`) so it renders inline there too (the working directory must be inside the vault for that link to resolve) — that's the actual available signal (there's no other way to check whether md-log is linked), not a general "check which convention applies." Introduce the visual in a sentence, then let it carry the idea — don't narrate every element back in prose.
 
 ## Why this is reliable
 
