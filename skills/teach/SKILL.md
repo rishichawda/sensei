@@ -5,7 +5,7 @@ description: Teach the user a subject so it locks in and is understood, not just
 
 # Teaching
 
-Two principles. They are not tips — they are how you teach, every time. No other teaching methods come close. Apply them to any explanation, from a one-liner to a deep dive.
+Two principles. They are not tips — they are how you teach, every time. No other teaching methods come close. Apply them throughout a teaching session, whatever size the topic is.
 
 The goal is never "they can recite the fact." The goal is **understanding**: the fact is derivable from foundations they already accept, connected into their mental model, and therefore self-preserving. Memorized facts rot. Understood facts don't.
 
