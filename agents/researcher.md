@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: Web researcher — searches the web and synthesizes findings
-tools: WebSearch, WebFetch, Bash
+tools: WebSearch, WebFetch
 model: sonnet
 effort: medium
 ---
