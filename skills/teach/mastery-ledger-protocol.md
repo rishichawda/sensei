@@ -37,12 +37,12 @@ Read this once, at the very start of Phase 1a, before probing.
 
 ## Section B — Per-node ledger check while building the map
 
-Read this at Phase 2, once every node in the dependency map has an ID, to understand what's already been recorded — not to take action, since the hook already did.
+Read this at Phase 2, once every node in the dependency map has an ID, to see what's already been recorded. The hook does the writing; the only thing you do here is apply the planning marks below.
 
 Phase 1a's probes don't attach to node IDs — they're logged in the session row's `probes` list (printed by `get-session`), not as per-node entries (what `get` prints), because no node ID existed yet when they ran. So there is no per-node `seen` to expect here from probing; what you're checking is narrower than it might sound:
 
 1. If Section A's lookup returned `passed` for a node's ID: mark it `*(already covered)*` in the map, and keep its Phase 3 treatment brief rather than dropping it from the map or re-teaching it in full.
-2. If a node shows `seen`: that came from some other unquiz-checked touch (not from Phase 1a probing, which never targets a node ID) — treat it exactly like a node with no record at all for planning purposes, same as `passed` doesn't apply.
+2. If a node shows `seen`: that came from some other unquiz-checked touch (not from Phase 1a probing, which never targets a node ID) — treat it exactly like a node with no record at all for planning purposes.
 3. You do not write anything here. If you expect the ledger to reflect something a Phase 1a probe established and it doesn't show up, remember it lives in the session row's `probes` (printed by `get-session`), not in the per-node entries `get` prints — check there, or `mastery-hook-debug.log` for a `tagged: false` entry around that question, before assuming the ledger itself is wrong.
 
 **Before moving on, confirm:**
