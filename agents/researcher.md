@@ -1,6 +1,6 @@
 ---
 name: researcher
-description: Web researcher — searches the web and synthesizes findings
+description: Web researcher — searches the web and synthesizes a sourced brief. Use when a task needs current or checkable facts from the web, such as researching a topic, finding out what is known about something, or checking a claim, with sources cited.
 tools: WebSearch, WebFetch
 model: sonnet
 effort: medium
