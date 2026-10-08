@@ -12,3 +12,6 @@ docs/superpowers/
 # Runtime output from the teach skill's diagram publishing (mermaid-maker/
 # svg-maker write here at whatever cwd they're run from) — never committed.
 viz/
+
+# claude plugin eval run output (local only)
+evals/results/
