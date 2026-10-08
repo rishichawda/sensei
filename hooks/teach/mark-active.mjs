@@ -5,10 +5,10 @@ import { markActive } from "./session-state.mjs";
 // `node <...>/scripts/mastery.mjs` is an unambiguous, structural signal that a
 // teach session's probe/plan loop has started — no need to parse Skill
 // tool_input. Merely mentioning the path (grep, git diff, cat, a dev reading
-// the file) must not count: the marker is never cleared mid-session, so a false
-// positive would enforce tagging for the rest of an unrelated session. The
-// marker is per-transcript, so it lives exactly as long as the session that
-// started the teach protocol.
+// the file) must not count: the marker is cleared only by a learner-confirmed `wrap`
+// (see mastery-record.mjs), so a false positive would enforce tagging for the
+// rest of an unrelated session. The marker is per-transcript, so it never
+// outlives the session that started the teach protocol.
 //
 // Matches `node` as the command (start of a line or after ; & |, after any `VAR=val`
 // prefixes and node flags) whose first non-flag argument is the script path,
