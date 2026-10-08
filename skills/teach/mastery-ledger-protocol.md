@@ -10,7 +10,7 @@ The mastery ledger (`scripts/mastery.mjs`, backed by one file per topic under `<
 
 Read this once, at the very start of Phase 1a, before probing.
 
-0. **Check for an in-progress session before doing anything else.** Once you have a candidate topic slug (even a tentative one, before the disambiguation steps below), run `node "<plugin-root>/scripts/mastery.mjs" get-session "<candidate-topic>"` via `Bash`. This prints the session row (`{goal, dependencyMap, nextNodeId, status, updatedAt}`) or the literal `null` if none exists.
+0. **Check for an in-progress session before doing anything else.** Once you have a candidate topic slug (even a tentative one, before the disambiguation steps below), run `node "<plugin-root>/scripts/mastery.mjs" get-session "<candidate-topic>"` via `Bash`. This prints the session row (`{goal, dependencyMap, nextNodeId, status, probes, updatedAt}`) or the literal `null` if none exists.
    - `null`, or a row with `status: "complete"` → today's behavior — fresh intake, no special-casing.
    - Row with `status: "intake"` → don't re-ask the goal if it's already set — recap it in one sentence and confirm ("last time you said your goal was X — still the target?"). Resume Phase 1a probing, skipping only nodes that already carry `passed` or `failed` in `topics[topicSlug]` (from step 4 below) — real graded coordinates. Nodes carrying only `seen` stay probe-eligible; `seen` is coverage, not mastery.
    - Row with `status: "planned"` or `"in-progress"` → skip Phase 1b and Phase 2 entirely. Recap the stored `goal` and a one-line summary of `dependencyMap`, then resume Phase 3 directly at `nextNodeId`.
@@ -39,16 +39,16 @@ Read this once, at the very start of Phase 1a, before probing.
 
 Read this at Phase 2, once every node in the dependency map has an ID, to understand what's already been recorded — not to take action, since the hook already did.
 
-Phase 1a's probes don't attach to node IDs — they're logged at the session level (`sessions[topic].probes`), not the per-node `topics[topic][nodeId]` coordinates, because no node ID existed yet when they ran. So there is no per-node `seen` to expect here from probing; what you're checking is narrower than it might sound:
+Phase 1a's probes don't attach to node IDs — they're logged in the session row's `probes` list (printed by `get-session`), not as per-node entries (what `get` prints), because no node ID existed yet when they ran. So there is no per-node `seen` to expect here from probing; what you're checking is narrower than it might sound:
 
 1. If Section A's lookup returned `passed` for a node's ID: mark it `*(already covered)*` in the map, and keep its Phase 3 treatment brief rather than dropping it from the map or re-teaching it in full.
 2. If a node shows `seen`: that came from some other unquiz-checked touch (not from Phase 1a probing, which never targets a node ID) — treat it exactly like a node with no record at all for planning purposes, same as `passed` doesn't apply.
-3. You do not write anything here. If you expect the ledger to reflect something a Phase 1a probe established and it doesn't show up, remember it lives in `sessions[topic].probes`, not `topics[topic][nodeId]` — check there, or `mastery-hook-debug.log` for a `tagged: false` entry around that question, before assuming the ledger itself is wrong.
+3. You do not write anything here. If you expect the ledger to reflect something a Phase 1a probe established and it doesn't show up, remember it lives in the session row's `probes` (printed by `get-session`), not in the per-node entries `get` prints — check there, or `mastery-hook-debug.log` for a `tagged: false` entry around that question, before assuming the ledger itself is wrong.
 
 **Before moving on, confirm:**
 - [ ] Checked every node in the map against the ledger, before presenting the plan.
 - [ ] Every `*(already covered)*` mark traces back to an actual `passed` from Section A's lookup.
-- [ ] If a node you expected `seen` on doesn't have it, checked whether that's because the coverage actually lives in `sessions[topic].probes` (Phase 1a probing) rather than assuming the ledger is wrong.
+- [ ] If a node you expected `seen` on doesn't have it, checked whether that's because the coverage actually lives in the session row's `probes` (Phase 1a probing) rather than assuming the ledger is wrong.
 
 ## Section C — Record on quiz-check
 
