@@ -63,21 +63,21 @@ export function writeState(transcriptPath, state) {
 }
 
 // Slash commands don't receive a transcript_path the way hooks do, so this
-// resolves the current session the same way a human would: the
-// most-recently-modified .jsonl under this project's transcript directory.
-// Resolves CLAUDE_CONFIG_DIR (can relocate the whole ~/.claude root) and
-// CLAUDE_CODE_PROJECT_DIR_NAME (can override the derived directory name)
-// before falling back to defaults, per the spec's Fidelity Note 3.
-// Known limitation: if two sessions are active in the same project at once,
-// this may pick the wrong one — accepted for a single-user personal tool.
+// resolves this session's transcript from CLAUDE_CODE_SESSION_ID (set in the
+// environment of the Bash tool the command runs through): the file
+// <config>/projects/<any project dir>/<session id>.jsonl. Picking the
+// newest .jsonl instead would link or unlink another session whenever two
+// run in the same project. No session id means no guess: return null.
+// CLAUDE_CONFIG_DIR can relocate the whole ~/.claude root.
 export function findCurrentTranscript() {
+  const sessionId = process.env.CLAUDE_CODE_SESSION_ID;
+  if (!sessionId || !/^[A-Za-z0-9_-]+$/.test(sessionId)) return null;
   const configRoot = process.env.CLAUDE_CONFIG_DIR || resolve(process.env.HOME, ".claude");
-  const projectDirName = process.env.CLAUDE_CODE_PROJECT_DIR_NAME || process.cwd().replace(/[^a-zA-Z0-9]/g, "-");
-  const dir = resolve(configRoot, "projects", projectDirName);
-  if (!existsSync(dir)) return null;
-  const jsonlFiles = readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
-  if (jsonlFiles.length === 0) return null;
-  const withMtime = jsonlFiles.map((f) => ({ f, mtime: statSync(resolve(dir, f)).mtimeMs }));
-  withMtime.sort((a, b) => b.mtime - a.mtime);
-  return resolve(dir, withMtime[0].f);
+  const projectsRoot = resolve(configRoot, "projects");
+  if (!existsSync(projectsRoot)) return null;
+  for (const dir of readdirSync(projectsRoot)) {
+    const candidate = resolve(projectsRoot, dir, `${sessionId}.jsonl`);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
 }
