@@ -1,6 +1,6 @@
 // sensei/hooks/md-log/link.mjs
 import { existsSync, statSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, extname } from "node:path";
 import { writeState, findCurrentTranscript } from "./lib.mjs";
 import { backfill } from "./session-start.mjs";
 
@@ -11,6 +11,10 @@ function main() {
     return;
   }
   const resolved = resolve(filepath);
+  if (extname(resolved).toLowerCase() !== ".md") {
+    console.log(`Only .md files can be linked: ${resolved}`);
+    return;
+  }
   if (existsSync(resolved)) {
     if (!statSync(resolved).isFile()) {
       console.log(`Not a file: ${resolved}`);

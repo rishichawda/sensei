@@ -109,7 +109,8 @@ test("link.mjs rejects a path that is a directory", () => {
   const transcriptPath = join(projectDir, "session-dir-target.jsonl");
   writeFileSync(transcriptPath, "", "utf8");
 
-  const targetDir = mkdtempSync(join(tmpdir(), "md-log-link-target-"));
+  const targetDir = join(mkdtempSync(join(tmpdir(), "md-log-link-target-")), "folder.md");
+  mkdirSync(targetDir);
 
   const output = execFileSync(process.execPath, [SCRIPT, targetDir], {
     env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_SESSION_ID: "session-dir-target" },
@@ -191,4 +192,44 @@ test("link.mjs rejects a session id that is not a plain identifier", () => {
   }).toString();
 
   assert.match(output, /Could not locate this session's transcript/);
+});
+
+test("link.mjs refuses an existing non-markdown file and leaves it untouched", () => {
+  const { configRoot, projectDir } = setupProject();
+  writeFileSync(join(projectDir, "session-nonmd.jsonl"), '{"type":"message","message":{"role":"user","content":"hi"}}\n', "utf8");
+  const targetFile = join(mkdtempSync(join(tmpdir(), "md-log-link-target-")), "rc.sh");
+  writeFileSync(targetFile, "export FOO=1\n", "utf8");
+
+  const output = execFileSync(process.execPath, [SCRIPT, targetFile], {
+    env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_SESSION_ID: "session-nonmd" },
+  }).toString();
+
+  assert.match(output, /Only \.md files can be linked/);
+  assert.equal(readFileSync(targetFile, "utf8"), "export FOO=1\n");
+  assert.equal(readState(join(projectDir, "session-nonmd.jsonl")).file, null);
+});
+
+test("link.mjs does not create a missing non-markdown file", () => {
+  const { configRoot, projectDir } = setupProject();
+  writeFileSync(join(projectDir, "session-nonmd2.jsonl"), "", "utf8");
+  const targetFile = join(mkdtempSync(join(tmpdir(), "md-log-link-target-")), "new-file.txt");
+
+  const output = execFileSync(process.execPath, [SCRIPT, targetFile], {
+    env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_SESSION_ID: "session-nonmd2" },
+  }).toString();
+
+  assert.match(output, /Only \.md files can be linked/);
+  assert.ok(!existsSync(targetFile));
+});
+
+test("link.mjs accepts an upper-case .MD extension", () => {
+  const { configRoot, projectDir } = setupProject();
+  writeFileSync(join(projectDir, "session-upper.jsonl"), "", "utf8");
+  const targetFile = join(mkdtempSync(join(tmpdir(), "md-log-link-target-")), "NOTE.MD");
+
+  const output = execFileSync(process.execPath, [SCRIPT, targetFile], {
+    env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_SESSION_ID: "session-upper" },
+  }).toString();
+
+  assert.match(output, /Linked:/);
 });
