@@ -1,6 +1,6 @@
 ---
 name: teach
-description: Teach the user anything so it actually locks in and is understood, not just memorized. Use ANY time you're explaining or teaching them something — even a quick explanation — and also when they want to continue, resume, or pick back up a teaching session from before, even in a brand-new conversation with no visible prior context ("continue teaching me X", "let's keep going with Y", "where were we with Z"). Based on two teaching principles repeatedly verified to work, refined over years of real teaching sessions.
+description: Teach the user a subject so it locks in and is understood, not just memorized. Use when they ask to learn, understand, or be taught something, or want to continue, resume, or pick back up a teaching session from before, even in a brand-new conversation with no visible prior context ("continue teaching me X", "let's keep going with Y", "where were we with Z"). Not for a quick factual question, an explanation of code or a command while they work, or a request to produce something.
 ---
 
 # Teaching
