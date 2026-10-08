@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTeachEvent, gradeAnswer, applyTeachEvent, truncate } from "./mastery-record.mjs";
-import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath, ledgersDir } from "../../scripts/mastery.mjs";
+import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath, ledgersDir, writeTopicLedger, recordNode } from "../../scripts/mastery.mjs";
+import { markActive, isActive } from "./session-state.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./mastery-record.mjs", import.meta.url));
 
@@ -360,3 +361,83 @@ function withEnv(env, fn) {
     else process.env.CLAUDE_CONFIG_DIR = original;
   }
 }
+
+function wrapPayload({ transcript, topic = "dns", done = "I'm done", answer, omitDone = false }) {
+  const source = { app: "sensei-teach", v: 1, kind: "wrap", topic };
+  if (!omitDone) source.done = done;
+  const question = "Anything else you want to learn?";
+  return {
+    hook_event_name: "PostToolUse",
+    tool_name: "AskUserQuestion",
+    transcript_path: transcript,
+    tool_input: { questions: [{ question, options: [{ label: "I'm done" }, { label: "Learn something else" }] }], metadata: { source: JSON.stringify(source) } },
+    tool_response: { answers: answer === undefined ? {} : { [question]: answer } },
+  };
+}
+
+function runWrap(env, payload) {
+  execFileSync(process.execPath, [SCRIPT], { input: JSON.stringify(payload), env });
+}
+
+function seedLedger(env, topic) {
+  let tl = setSessionPlan(emptyTopicLedger(), { nodes: ["a", "b"], edges: [] }, new Date("2026-01-01T00:00:00.000Z"));
+  tl = recordNode(tl, "a", "passed", new Date("2026-01-01T00:00:00.000Z"));
+  withEnv(env, () => writeTopicLedger(topic, tl));
+  return withEnv(env, () => topicLedgerPath(topic));
+}
+
+function freshTranscript() {
+  return join(mkdtempSync(join(tmpdir(), "mastery-record-wrap-")), "session.jsonl");
+}
+
+test("main() clears the enforcement marker when a wrap is answered with the done label, and leaves the ledger byte-identical", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  const file = seedLedger(env, "dns");
+  const before = readFileSyncNode(file, "utf8");
+  const transcript = freshTranscript();
+  markActive(transcript);
+  runWrap(env, wrapPayload({ transcript, answer: "I'm done" }));
+  assert.equal(isActive(transcript), false);
+  assert.equal(readFileSyncNode(file, "utf8"), before);
+});
+
+test("main() keeps the marker and the ledger when a wrap is answered with another option", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  const file = seedLedger(env, "dns");
+  const before = readFileSyncNode(file, "utf8");
+  const transcript = freshTranscript();
+  markActive(transcript);
+  runWrap(env, wrapPayload({ transcript, answer: "Learn something else" }));
+  assert.equal(isActive(transcript), true);
+  assert.equal(readFileSyncNode(file, "utf8"), before);
+});
+
+test("main() keeps the marker when a wrap is answered with free-text Other", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  const transcript = freshTranscript();
+  markActive(transcript);
+  runWrap(env, wrapPayload({ transcript, answer: "actually, one more thing" }));
+  assert.equal(isActive(transcript), true);
+});
+
+test("main() does not clear the marker when the tag has no done label and the call has no answer", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  const transcript = freshTranscript();
+  markActive(transcript);
+  runWrap(env, wrapPayload({ transcript, omitDone: true, answer: undefined }));
+  assert.equal(isActive(transcript), true, "undefined must never equal undefined here");
+});
+
+test("main() clears the marker for a topic with no ledger file and creates no ledger file", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  const transcript = freshTranscript();
+  markActive(transcript);
+  runWrap(env, wrapPayload({ transcript, topic: "never-recorded", answer: "I'm done" }));
+  assert.equal(isActive(transcript), false);
+  assert.equal(existsSync(withEnv(env, () => topicLedgerPath("never-recorded"))), false);
+});
+
+test("main() survives a wrap payload with no transcript_path", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  assert.doesNotThrow(() => runWrap(env, wrapPayload({ transcript: undefined, answer: "I'm done" })));
+});

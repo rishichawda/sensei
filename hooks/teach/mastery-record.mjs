@@ -1,6 +1,7 @@
 import { readTopicLedger, writeTopicLedger, recordNode, touchSession, setSessionGoal, setSessionPlan, advanceSession, addProbe, slugify } from "../../scripts/mastery.mjs";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { clearActive } from "./session-state.mjs";
 
 const DEBUG_LOG_MAX_LINES = 200;
 
@@ -116,6 +117,16 @@ async function main() {
   if (!question) return;
   const answerText = payload.tool_response?.answers?.[question.question];
   const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];
+
+  // A confirmed end of the lesson writes no ledger: the session keeps whatever
+  // status it had (complete, or in-progress and resumable) and only the
+  // enforcement marker is released.
+  if (event.kind === "wrap") {
+    if (typeof event.done === "string" && answerText === event.done && payload.transcript_path) {
+      clearActive(payload.transcript_path);
+    }
+    return;
+  }
 
   if (!event.topic) {
     if (event.kind !== "other") {
