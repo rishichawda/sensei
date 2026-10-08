@@ -53,7 +53,7 @@ filename: viz-<slug>-<digits>.png
 path: <cwd>/viz/viz-<slug>-<digits>.png
 ```
 
-If it returns `RESULT: NONE`, it couldn't make a correct picture of the brief — simplify or rethink, or decide the visual isn't worth it. Never hand-author or fake a diagram yourself; correctness depends on the maker's render-and-inspect loop.
+If it returns `RESULT: NONE`, it couldn't make a correct picture of the brief. If the caller asked for a fixed map (such as teach's plan map), don't retry: report that there is no picture. For any other visual, simplify the idea and re-brief at most once, or decide the visual isn't worth it. Never hand-author or fake a diagram yourself; correctness depends on the maker's render-and-inspect loop.
 
 ## Embed it in the lesson
 
