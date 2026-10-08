@@ -204,3 +204,20 @@ test("main() prints a deny decision end-to-end for a malformed tag", () => {
   assert.equal(parsed.hookSpecificOutput.permissionDecision, "deny");
   assert.match(parsed.hookSpecificOutput.permissionDecisionReason, /^This AskUserQuestion call has a malformed sensei-teach tag:/);
 });
+
+test("checkDeny allows a valid wrap tag and denies a malformed one", () => {
+  const transcript = freshTranscriptPath();
+  markActive(transcript);
+  const wrap = { app: "sensei-teach", v: 1, kind: "wrap", topic: "dns", done: "I'm done" };
+  const questions = questionWithOptions(["I'm done", "Learn something else"]).questions;
+  assert.equal(checkDeny(taggedCall(wrap, questions, transcript)), null);
+  const bad = checkDeny(taggedCall({ ...wrap, done: "Done" }, questions, transcript));
+  assert.match(bad.hookSpecificOutput.permissionDecisionReason, /wrap tag: done "Done" matches none of the option labels/);
+});
+
+test("the missing-tag reason lists the wrap shape", () => {
+  const transcript = freshTranscriptPath();
+  markActive(transcript);
+  const decision = checkDeny({ hook_event_name: "PreToolUse", tool_name: "AskUserQuestion", tool_input: questionWithOptions(["A", "B"]), transcript_path: transcript });
+  assert.match(decision.hookSpecificOutput.permissionDecisionReason, /kind:"wrap", topic:"<topic>", done:"<exact label of the done option>"/);
+});

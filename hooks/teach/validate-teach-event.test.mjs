@@ -10,6 +10,8 @@ const probe = { ...TAG, kind: "probe", topic: "dns" };
 const goal = { ...TAG, kind: "goal", topic: "dns", goal: "debug resolver failures" };
 const node = { ...TAG, kind: "node", topic: "dns", node: "recursion", recordAs: "graded", correct: "B" };
 const plan = { ...TAG, kind: "plan", topic: "dns", approve: "Looks good", plan: PLAN };
+const wrap = { ...TAG, kind: "wrap", topic: "dns", done: "I'm done" };
+const WRAP_OPTS = one("I'm done", "Learn something else");
 const ABC = one("A", "B", "I don't know");
 const APPROVE = one("Looks good", "I have changes");
 
@@ -18,6 +20,7 @@ const VALID = [
   ["goal", goal, ABC],
   ["node", node, ABC],
   ["plan", plan, APPROVE],
+  ["wrap", wrap, WRAP_OPTS],
   ["plan with a single node and no edges", { ...plan, plan: { nodes: ["a"], edges: [] } }, APPROVE],
   ["other without topic", { ...TAG, kind: "other" }, ABC],
   ["other with topic", { ...TAG, kind: "other", topic: "dns" }, ABC],
@@ -42,7 +45,7 @@ const INVALID = [
   ["v is 2", { ...probe, v: 2 }, ABC, [/^tag: v is 2/]],
   ["v is the string 1", { ...probe, v: "1" }, ABC, [/^tag: v is "1"/]],
   ["v missing", { app: "sensei-teach", kind: "probe", topic: "dns" }, ABC, [/^tag: v is undefined/]],
-  ["unknown kind", { ...TAG, kind: "quiz" }, ABC, [/^tag: kind "quiz" is not one of probe, goal, node, plan, other/]],
+  ["unknown kind", { ...TAG, kind: "quiz" }, ABC, [/^tag: kind "quiz" is not one of probe, goal, node, plan, wrap, other/]],
   ["kind missing", { ...TAG }, ABC, [/^tag: kind undefined is not one of/]],
 
   ["probe without topic", { ...TAG, kind: "probe" }, ABC, [/^probe tag: topic must be a non-empty string/]],
@@ -91,6 +94,14 @@ const INVALID = [
   ["node multi-select", node, multiSelect(["A", "B"]), [/^node tag: question is multi-select/]],
   ["plan multi-select", plan, multiSelect(["Looks good", "No"]), [/^plan tag: question is multi-select/]],
 
+  ["wrap without topic", { ...wrap, topic: undefined }, WRAP_OPTS, [/^wrap tag: topic must be a non-empty string/]],
+  ["wrap without done", { ...wrap, done: undefined }, WRAP_OPTS, [/^wrap tag: done undefined matches none of the option labels \["I'm done","Learn something else"\]/]],
+  ["wrap done matches no label", { ...wrap, done: "Done" }, WRAP_OPTS, [/^wrap tag: done "Done" matches none of the option labels/]],
+  ["wrap done differs by case", { ...wrap, done: "i'm done" }, WRAP_OPTS, [/^wrap tag: done "i'm done" matches none/]],
+  ["wrap done missing while an option has no label", { ...wrap, done: undefined }, [{ question: "Q?", options: [{ description: "x" }, { label: "I'm done" }] }], [/^wrap tag: done undefined matches none/]],
+  ["wrap with 2 questions", wrap, [...WRAP_OPTS, ...WRAP_OPTS], [/^wrap tag: call has 2 questions; send exactly one question per call$/]],
+  ["wrap with zero questions", wrap, [], [/^wrap tag: call has 0 questions/]],
+  ["wrap multi-select", wrap, multiSelect(["I'm done", "Other"]), [/^wrap tag: question is multi-select/]],
   ["several problems are all reported in one pass", { ...node, topic: undefined, correct: "Z" }, multi, [/topic must be/, /call has 2 questions/, /correct "Z" matches none/]],
 ];
 

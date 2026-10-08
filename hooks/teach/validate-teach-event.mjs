@@ -1,5 +1,5 @@
-const KINDS = ["probe", "goal", "node", "plan", "other"];
-const ONE_QUESTION_KINDS = ["probe", "goal", "node", "plan"];
+const KINDS = ["probe", "goal", "node", "plan", "wrap", "other"];
+const ONE_QUESTION_KINDS = ["probe", "goal", "node", "plan", "wrap"];
 
 const isText = (value) => typeof value === "string" && value.length > 0;
 
@@ -19,9 +19,10 @@ export function validateTeachEvent(event, questions) {
   };
   const qs = Array.isArray(questions) ? questions : [];
   const labels = Array.isArray(qs[0]?.options) ? qs[0].options.map((o) => o?.label) : [];
+  const ROLE = { correct: "correct", approve: "approval", done: "I'm done" };
   const requireLabel = (field) => {
     if (qs.length > 0 && !(isText(event[field]) && labels.includes(event[field]))) {
-      problems.push(`${at}: ${field} ${JSON.stringify(event[field])} matches none of the option labels ${JSON.stringify(labels)}; set it to the exact label of the ${field === "correct" ? "correct" : "approval"} option`);
+      problems.push(`${at}: ${field} ${JSON.stringify(event[field])} matches none of the option labels ${JSON.stringify(labels)}; set it to the exact label of the ${ROLE[field]} option`);
     }
   };
 
@@ -48,6 +49,11 @@ export function validateTeachEvent(event, questions) {
     requireText("topic");
     requireLabel("approve");
     validatePlan(event.plan, at, problems);
+  }
+
+  if (kind === "wrap") {
+    requireText("topic");
+    requireLabel("done");
   }
 
   return problems;
