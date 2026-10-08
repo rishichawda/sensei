@@ -99,31 +99,42 @@ export function setSessionGoal(topicLedger, goal, now = new Date()) {
   return { ...base, session: { ...base.session, goal, updatedAt: now.toISOString() } };
 }
 
-export function setSessionPlan(topicLedger, plan, now = new Date()) {
-  const base = touchSession(topicLedger, now);
-  const nodes = Array.isArray(plan?.nodes) ? plan.nodes : [];
-  const session = { ...base.session, dependencyMap: plan, nextNodeId: nodes[0] ?? null, status: "planned", updatedAt: now.toISOString() };
-  return { ...base, session };
+// The frontier and status are facts about the ledger, not bookkeeping: the
+// frontier is the first plan node that is not `passed`, so nodes covered in an
+// earlier session or passed out of order can never strand it.
+export function deriveSession(topicLedger) {
+  const session = getSession(topicLedger);
+  const planNodes = session?.dependencyMap?.nodes;
+  if (!session || !Array.isArray(planNodes)) return session;
+  const ids = planNodes.filter((id) => typeof id === "string");
+  const recorded = topicLedger.nodes ?? {};
+  const frontier = ids.find((id) => recorded[id]?.status !== "passed") ?? null;
+  let status = session.status;
+  if (frontier === null) {
+    if (ids.length > 0) status = "complete";
+  } else if (status === "planned") {
+    if (ids.some((id) => recorded[id])) status = "in-progress";
+  } else if (status === "complete") {
+    status = "in-progress";
+  }
+  if (frontier === session.nextNodeId && status === session.status) return session;
+  return { ...session, nextNodeId: frontier, status };
 }
 
-export function advanceSession(topicLedger, nodeId, status, now = new Date()) {
-  const session = getSession(topicLedger);
-  if (!session || !session.dependencyMap) return topicLedger;
-  let nextNodeId = session.nextNodeId;
-  let newStatus = session.status === "planned" ? "in-progress" : session.status;
-  if (status === "passed" && nodeId === session.nextNodeId) {
-    const nodes = session.dependencyMap.nodes || [];
-    const idx = nodes.indexOf(nodeId);
-    const following = idx >= 0 ? nodes[idx + 1] : undefined;
-    if (following !== undefined) {
-      nextNodeId = following;
-    } else {
-      nextNodeId = null;
-      newStatus = "complete";
-    }
-  }
-  if (newStatus === session.status && nextNodeId === session.nextNodeId) return topicLedger;
-  return { ...topicLedger, session: { ...session, status: newStatus, nextNodeId, updatedAt: now.toISOString() } };
+function applyDerived(topicLedger, now) {
+  const derived = deriveSession(topicLedger);
+  if (!derived || derived === topicLedger.session) return topicLedger;
+  return { ...topicLedger, session: { ...derived, updatedAt: now.toISOString() } };
+}
+
+export function setSessionPlan(topicLedger, plan, now = new Date()) {
+  const base = touchSession(topicLedger, now);
+  const session = { ...base.session, dependencyMap: plan, nextNodeId: null, status: "planned", updatedAt: now.toISOString() };
+  return applyDerived({ ...base, session }, now);
+}
+
+export function advanceSession(topicLedger, now = new Date()) {
+  return applyDerived(topicLedger, now);
 }
 
 export function recordNode(topicLedger, nodeId, status, now = new Date()) {
@@ -158,7 +169,7 @@ function main() {
       console.error("Usage: mastery.mjs get-session <topic>");
       process.exit(1);
     }
-    console.log(JSON.stringify(getSession(readTopicLedger(slugify(topicArg)))));
+    console.log(JSON.stringify(deriveSession(readTopicLedger(slugify(topicArg)))));
     return;
   }
 

@@ -19,6 +19,7 @@ import {
   setSessionGoal,
   setSessionPlan,
   advanceSession,
+  deriveSession,
   addProbe,
 } from "./mastery.mjs";
 
@@ -37,6 +38,15 @@ function withConfigDir(configDir, fn) {
     if (original === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = original;
   }
+}
+
+const T1 = new Date("2026-01-01T00:00:00.000Z");
+const T2 = new Date("2026-01-02T00:00:00.000Z");
+
+function planned(plan, statuses = {}) {
+  let tl = setSessionPlan(emptyTopicLedger(), plan, T1);
+  for (const [id, status] of Object.entries(statuses)) tl = recordNode(tl, id, status, T1);
+  return tl;
 }
 
 test("slugify lowercases, hyphenates, and trims", () => {
@@ -210,47 +220,147 @@ test("setSessionPlan sets nextNodeId to null for a plan with an empty node list"
   assert.equal(result.session.nextNodeId, null);
 });
 
-test("advanceSession moves nextNodeId forward and flips status to in-progress on a passing grade at the current frontier", () => {
-  const plan = { nodes: ["primitives", "typing", "functions"], edges: [] };
-  let topicLedger = setSessionPlan(emptyTopicLedger(), plan, new Date("2026-01-01T00:00:00.000Z"));
-  topicLedger = advanceSession(topicLedger, "primitives", "passed", new Date("2026-01-02T00:00:00.000Z"));
-  assert.equal(topicLedger.session.nextNodeId, "typing");
-  assert.equal(topicLedger.session.status, "in-progress");
+test("advanceSession moves nextNodeId to the next unpassed node and flips status to in-progress after a pass", () => {
+  const tl = planned({ nodes: ["primitives", "typing", "functions"], edges: [] }, { primitives: "passed" });
+  const result = advanceSession(tl, T2);
+  assert.equal(result.session.nextNodeId, "typing");
+  assert.equal(result.session.status, "in-progress");
+  assert.equal(result.session.updatedAt, T2.toISOString());
 });
 
 test("advanceSession flips status to complete when the last node in the plan passes", () => {
-  const plan = { nodes: ["only-node"], edges: [] };
-  let topicLedger = setSessionPlan(emptyTopicLedger(), plan, new Date("2026-01-01T00:00:00.000Z"));
-  topicLedger = advanceSession(topicLedger, "only-node", "passed", new Date("2026-01-02T00:00:00.000Z"));
-  assert.equal(topicLedger.session.nextNodeId, null);
-  assert.equal(topicLedger.session.status, "complete");
+  const tl = planned({ nodes: ["only-node"], edges: [] }, { "only-node": "passed" });
+  const result = advanceSession(tl, T2);
+  assert.equal(result.session.nextNodeId, null);
+  assert.equal(result.session.status, "complete");
 });
 
-test("advanceSession flips status to in-progress on a failing grade too, but does not move nextNodeId", () => {
-  const plan = { nodes: ["primitives", "typing"], edges: [] };
-  let topicLedger = setSessionPlan(emptyTopicLedger(), plan, new Date("2026-01-01T00:00:00.000Z"));
-  topicLedger = advanceSession(topicLedger, "primitives", "failed", new Date("2026-01-02T00:00:00.000Z"));
-  assert.equal(topicLedger.session.nextNodeId, "primitives", "a failed node must stay the frontier so it gets re-taught");
-  assert.equal(topicLedger.session.status, "in-progress");
+test("advanceSession keeps a failed node as the frontier and flips status to in-progress", () => {
+  const tl = planned({ nodes: ["primitives", "typing"], edges: [] }, { primitives: "failed" });
+  const result = advanceSession(tl, T2);
+  assert.equal(result.session.nextNodeId, "primitives", "a failed node must stay the frontier so it gets re-taught");
+  assert.equal(result.session.status, "in-progress");
 });
 
-test("advanceSession does not move nextNodeId when the graded node isn't the current frontier", () => {
-  const plan = { nodes: ["primitives", "typing"], edges: [] };
-  let topicLedger = setSessionPlan(emptyTopicLedger(), plan, new Date("2026-01-01T00:00:00.000Z"));
-  topicLedger = advanceSession(topicLedger, "typing", "passed", new Date("2026-01-02T00:00:00.000Z"));
-  assert.equal(topicLedger.session.nextNodeId, "primitives");
+test("advanceSession skips nodes that were already passed, earlier or out of order", () => {
+  const tl = planned({ nodes: ["a", "b", "c", "d"], edges: [] }, { a: "passed", c: "passed" });
+  assert.equal(advanceSession(tl, T2).session.nextNodeId, "b");
+  const all = planned({ nodes: ["a", "b", "c"], edges: [] }, { a: "passed", b: "passed", c: "passed" });
+  assert.equal(advanceSession(all, T2).session.status, "complete");
+});
+
+test("advanceSession leaves the frontier at the first unpassed node when a later node passes first", () => {
+  const tl = planned({ nodes: ["primitives", "typing"], edges: [] }, { typing: "passed" });
+  const result = advanceSession(tl, T2);
+  assert.equal(result.session.nextNodeId, "primitives");
+  assert.equal(result.session.status, "in-progress");
+});
+
+test("advanceSession returns the same reference when nothing changes", () => {
+  const once = advanceSession(planned({ nodes: ["a", "b"], edges: [] }, { a: "passed" }), T2);
+  assert.equal(advanceSession(once, T2), once);
 });
 
 test("advanceSession is a no-op when there is no session row yet", () => {
-  const topicLedger = emptyTopicLedger();
-  const result = advanceSession(topicLedger, "primitives", "passed", new Date("2026-01-01T00:00:00.000Z"));
-  assert.equal(result, topicLedger);
+  const tl = emptyTopicLedger();
+  assert.equal(advanceSession(tl, T1), tl);
 });
 
 test("advanceSession is a no-op when the session has no dependencyMap yet", () => {
-  const topicLedger = touchSession(emptyTopicLedger(), new Date("2026-01-01T00:00:00.000Z"));
-  const result = advanceSession(topicLedger, "primitives", "passed", new Date("2026-01-02T00:00:00.000Z"));
-  assert.equal(result, topicLedger);
+  const tl = touchSession(emptyTopicLedger(), T1);
+  assert.equal(advanceSession(tl, T2), tl);
+});
+
+test("deriveSession skips nodes passed in an earlier session at the start of a plan", () => {
+  const tl = planned({ nodes: ["a", "b", "c"], edges: [] }, { a: "passed" });
+  const derived = deriveSession(tl);
+  assert.equal(derived.nextNodeId, "b");
+  assert.equal(derived.status, "in-progress");
+});
+
+test("deriveSession points at the first node when only a later node is passed", () => {
+  const derived = deriveSession(planned({ nodes: ["a", "b", "c"], edges: [] }, { b: "passed" }));
+  assert.equal(derived.nextNodeId, "a");
+  assert.equal(derived.status, "in-progress");
+});
+
+test("deriveSession reports complete with a null frontier when every plan node is passed", () => {
+  const derived = deriveSession(planned({ nodes: ["a", "b"], edges: [] }, { a: "passed", b: "passed" }));
+  assert.equal(derived.nextNodeId, null);
+  assert.equal(derived.status, "complete");
+});
+
+test("deriveSession does not count a seen node as passed, but a record of any kind moves planned to in-progress", () => {
+  const derived = deriveSession(planned({ nodes: ["a", "b"], edges: [] }, { a: "seen" }));
+  assert.equal(derived.nextNodeId, "a");
+  assert.equal(derived.status, "in-progress");
+});
+
+test("deriveSession leaves a planned row with no recorded plan node as planned", () => {
+  const tl = planned({ nodes: ["a", "b"], edges: [] });
+  assert.equal(deriveSession(tl), tl.session);
+  assert.equal(tl.session.status, "planned");
+});
+
+test("deriveSession keeps an empty plan as planned with a null frontier, never complete", () => {
+  const tl = planned({ nodes: [], edges: [] });
+  const derived = deriveSession(tl);
+  assert.equal(derived.status, "planned");
+  assert.equal(derived.nextNodeId, null);
+});
+
+test("deriveSession ignores plan nodes that are not strings", () => {
+  const tl = planned({ nodes: ["a", 2, null, "b"], edges: [] }, { a: "passed" });
+  assert.equal(deriveSession(tl).nextNodeId, "b");
+});
+
+test("deriveSession moves a complete session back to in-progress when a plan node is no longer passed", () => {
+  const tl = planned({ nodes: ["a", "b"], edges: [] }, { a: "passed", b: "passed" });
+  const complete = advanceSession(tl, T2);
+  assert.equal(complete.session.status, "complete");
+  const regressed = recordNode(complete, "b", "failed", T2);
+  const derived = deriveSession(regressed);
+  assert.equal(derived.status, "in-progress");
+  assert.equal(derived.nextNodeId, "b");
+});
+
+test("deriveSession returns null with no session and the row itself when there is no dependencyMap", () => {
+  assert.equal(deriveSession(emptyTopicLedger()), null);
+  const tl = touchSession(emptyTopicLedger(), T1);
+  assert.equal(deriveSession(tl), tl.session);
+});
+
+test("deriveSession repairs a row written before this change, whose nextNodeId is stuck", () => {
+  let tl = planned({ nodes: ["a", "b", "c"], edges: [] }, { a: "passed", b: "passed" });
+  tl = { ...tl, session: { ...tl.session, status: "in-progress", nextNodeId: "a" } };
+  assert.equal(deriveSession(tl).nextNodeId, "c");
+});
+
+test("deriveSession does not mutate its input", () => {
+  const tl = planned({ nodes: ["a", "b"], edges: [] }, { a: "passed" });
+  const snapshot = JSON.stringify(tl);
+  deriveSession(tl);
+  assert.equal(JSON.stringify(tl), snapshot);
+});
+
+test("setSessionPlan skips nodes that were already passed in an earlier session", () => {
+  let tl = recordNode(emptyTopicLedger(), "a", "passed", T1);
+  tl = setSessionPlan(tl, { nodes: ["a", "b"], edges: [["a", "b"]] }, T2);
+  assert.equal(tl.session.nextNodeId, "b");
+  assert.equal(tl.session.status, "in-progress");
+});
+
+test("CLI get-session derives the frontier on read for an old row and does not write the ledger", () => {
+  const configDir = freshConfigDir();
+  let old = planned({ nodes: ["a", "b", "c"], edges: [] }, { a: "passed", b: "passed" });
+  old = { ...old, session: { ...old.session, status: "in-progress", nextNodeId: "a" } };
+  withConfigDir(configDir, () => writeTopicLedger("javascript", old));
+  const file = join(configDir, "sensei", "ledgers", "javascript.json");
+  const before = readFileSync(file, "utf8");
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const parsed = JSON.parse(execFileSync("node", [SCRIPT, "get-session", "JavaScript"], { env }).toString());
+  assert.equal(parsed.nextNodeId, "c");
+  assert.equal(readFileSync(file, "utf8"), before, "reading must not rewrite the ledger");
 });
 
 test("listTopics returns an empty array when the ledgers directory doesn't exist yet", () => {

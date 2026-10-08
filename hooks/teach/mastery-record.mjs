@@ -35,7 +35,7 @@ export function applyTeachEvent(topicLedger, event, answerText, optionLabels, no
         return { ledger: next, diagnostic: `teach: correct value "${event.correct}" does not match any option label for node "${event.node}"` };
       }
       next = recordNode(next, event.node, grade);
-      next = advanceSession(next, event.node, grade, now);
+      next = advanceSession(next, now);
       return { ledger: next };
     }
     return { ledger: next };
