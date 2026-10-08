@@ -228,3 +228,13 @@ test("the missing-tag reason says a goal tag is not for confirming a stored goal
   const decision = checkDeny({ hook_event_name: "PreToolUse", tool_name: "AskUserQuestion", tool_input: questionWithOptions(["A", "B"]), transcript_path: transcript });
   assert.match(decision.hookSpecificOutput.permissionDecisionReason, /for the goal-concretizing call \(never to confirm a stored goal: it starts a new session\)/);
 });
+
+test("the missing-tag reason uses the new phase names and shows the probe tag with correct", () => {
+  const transcript = freshTranscriptPath();
+  markActive(transcript);
+  const decision = checkDeny({ hook_event_name: "PreToolUse", tool_name: "AskUserQuestion", tool_input: questionWithOptions(["A", "B"]), transcript_path: transcript });
+  const reason = decision.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /kind:"probe", topic:"<topic>", correct:"<exact correct label>"\} for a Phase 1b probe/);
+  assert.match(reason, /Phase 1a's interim narrowing calls/);
+  assert.doesNotMatch(reason, /Phase 1b's interim/);
+});
