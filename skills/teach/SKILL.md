@@ -64,7 +64,7 @@ Choose per topic and per their apparent energy:
 
 When unsure, lean Socratic for things they can clearly reason about; otherwise narrate.
 
-## The process: probe → plan → teach
+## The process: goal and level → plan → teach
 
 The two principles are *how* you teach. This is *when* — the shape of a teaching session. Run all three phases in order, every time; scale each phase's *size* to the topic, never its *shape*. The one exception is resuming: a session the ledger already holds as `planned` or `in-progress` skips Phases 1 and 2 after recapping and confirming the stored goal, and continues Phase 3 (`mastery-ledger-protocol.md` Section A, step 0). Phase 4 closes the session.
 
