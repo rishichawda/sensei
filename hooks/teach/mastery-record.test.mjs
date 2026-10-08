@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTeachEvent, gradeAnswer, applyTeachEvent, truncate } from "./mastery-record.mjs";
-import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath, ledgersDir, writeTopicLedger, recordNode } from "../../scripts/mastery.mjs";
+import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath, ledgersDir, writeTopicLedger, recordNode, advanceSession } from "../../scripts/mastery.mjs";
 import { markActive, isActive } from "./session-state.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./mastery-record.mjs", import.meta.url));
@@ -379,9 +379,10 @@ function runWrap(env, payload) {
   execFileSync(process.execPath, [SCRIPT], { input: JSON.stringify(payload), env });
 }
 
-function seedLedger(env, topic) {
+function seedLedger(env, topic, passedIds = ["a"]) {
   let tl = setSessionPlan(emptyTopicLedger(), { nodes: ["a", "b"], edges: [] }, new Date("2026-01-01T00:00:00.000Z"));
-  tl = recordNode(tl, "a", "passed", new Date("2026-01-01T00:00:00.000Z"));
+  for (const id of passedIds) tl = recordNode(tl, id, "passed", new Date("2026-01-01T00:00:00.000Z"));
+  tl = advanceSession(tl, new Date("2026-01-01T00:00:00.000Z"));
   withEnv(env, () => writeTopicLedger(topic, tl));
   return withEnv(env, () => topicLedgerPath(topic));
 }
@@ -440,4 +441,16 @@ test("main() clears the marker for a topic with no ledger file and creates no le
 test("main() survives a wrap payload with no transcript_path", () => {
   const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
   assert.doesNotThrow(() => runWrap(env, wrapPayload({ transcript: undefined, answer: "I'm done" })));
+});
+
+test("main() keeps a complete session complete and an in-progress session in-progress when a wrap is answered done", () => {
+  for (const [passed, status] of [[["a", "b"], "complete"], [["a"], "in-progress"]]) {
+    const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+    const file = seedLedger(env, "dns", passed);
+    const transcript = freshTranscript();
+    markActive(transcript);
+    runWrap(env, wrapPayload({ transcript, answer: "I'm done" }));
+    assert.equal(JSON.parse(readFileSyncNode(file, "utf8")).session.status, status);
+    assert.equal(isActive(transcript), false);
+  }
 });
