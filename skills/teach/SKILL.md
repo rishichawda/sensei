@@ -121,7 +121,7 @@ A good plan is what makes the teaching feel inevitable instead of arbitrary.
 
 **The approval question itself must use `AskUserQuestion`, not a plain yes/no in prose, and the tool requires 2-4 options — so offer one option that means approval plus at least one that means "not yet" (e.g. "I have changes"), and name the approval option's exact label in the tag's `approve` field.** Wording is free; what matters is that `approve` equals that option's label character for character. `hooks/teach/mastery-record.mjs` treats an answer equal to `approve` as approval and anything else — the other options, or the built-in "Other" free text — as decline, and `hooks/teach/enforce-teach-tag.mjs` denies the call before it runs, with the fix in its reason, if `approve` is missing or matches none of the call's options. Attach the map as metadata on that same call: `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "plan", topic: "<topic>", approve: "<exact approval option label>", plan: {nodes: [...node IDs in teaching order], edges: [[from, to], ...]}})}`. Keep the plan payload small — node IDs and edge pairs only, no labels or descriptions; those already live in the rendered diagram.
 
-**Then stop and wait for their go-ahead.** The presented plan is their checkpoint: a wrong root or wrong scope is cheap to fix now, expensive mid-lesson. Do not begin Phase 3 until they okay the plan. If they ask for changes, redraw the map and repeat the ledger check above for any newly-added node. If the change is to the goal itself, not only the map, send the Phase 1b goal call again: a new goal starts a fresh session row and keeps their per-node mastery, so redraw the map and get approval again.
+**Then stop and wait for their go-ahead.** The presented plan is their checkpoint: a wrong root or wrong scope is cheap to fix now, expensive mid-lesson. Do not begin Phase 3 until they okay the plan. If they ask for changes, redraw the map and repeat the ledger check above for any newly-added node. If the change is to the goal itself, not only the map, send the Phase 1b goal call again to update it, then redraw the map and get approval again.
 
 ### Phase 3 — Teach (the loop)
 
@@ -142,12 +142,12 @@ If you catch yourself asserting a fact they'd have to take on faith — foundati
 
 ### Phase 4 — Close
 
-End the lesson only through a check the learner confirms, never on your own guess. Ask it in two cases: the last node of the plan has just passed (the session is `complete`), or the learner says in their own words that they understand everything or want you to stop.
+End the lesson only through a check the learner confirms, never on your own guess. Ask it in two cases: every node of the plan has passed (the session is `complete`), or the learner says in their own words that they understand everything or want you to stop.
 
 Ask it with `AskUserQuestion`: one single-select question with an "I'm done" option and at least one option meaning they want to learn something else, tagged `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "wrap", topic: "<topic>", done: "<exact label of the I'm done option>"})}`. `done` must equal that option's label character for character.
 
 - **They pick the "I'm done" option:** the hook releases the tagging requirement for this session and writes nothing to the ledger. Stop teaching: no more probes, plans, quiz-checks or tagged questions, and do not run `mastery.mjs` again (running it re-activates the session). Answer whatever they ask next normally. If they later ask to continue, `teach` starts again from Section A.
-- **They pick anything else, or type free text:** the lesson goes on. A new subject or goal goes back to Phase 1b with a new `goal` call, which starts a fresh session and keeps their per-node mastery; carrying on with the current plan continues Phase 3.
+- **They pick anything else, or type free text:** the lesson goes on. A new subject starts again from Section A (resolve the topic, then probe); a new goal on the same topic goes to Phase 1b with a new `goal` call, which starts a fresh session and keeps their per-node mastery; carrying on with the current plan continues Phase 3.
 - **A stop before the plan is finished** is fine and needs nothing from you: the session stays `in-progress`, and a later "continue" resumes at the first node not yet passed. Never mark a session complete yourself; the ledger decides that.
 
 ## Choosing how to render a diagram or visual
