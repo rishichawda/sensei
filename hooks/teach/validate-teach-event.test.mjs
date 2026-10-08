@@ -6,7 +6,7 @@ const one = (...labels) => [{ question: "Q?", options: labels.map((label) => ({ 
 const TAG = { app: "sensei-teach", v: 1 };
 const PLAN = { nodes: ["a", "b", "c"], edges: [["a", "b"], ["b", "c"]] };
 
-const probe = { ...TAG, kind: "probe", topic: "dns" };
+const probe = { ...TAG, kind: "probe", topic: "dns", correct: "B" };
 const goal = { ...TAG, kind: "goal", topic: "dns", goal: "debug resolver failures" };
 const node = { ...TAG, kind: "node", topic: "dns", node: "recursion", recordAs: "graded", correct: "B" };
 const plan = { ...TAG, kind: "plan", topic: "dns", approve: "Looks good", plan: PLAN };
@@ -28,7 +28,7 @@ const VALID = [
   ["other with multi-select", { ...TAG, kind: "other" }, [{ question: "Q?", multiSelect: true, options: [{ label: "x" }] }]],
   ["other with no questions", { ...TAG, kind: "other" }, []],
   ["extra fields are allowed", { ...probe, note: "x" }, ABC],
-  ["multiSelect false is single-select", probe, [{ question: "Q?", multiSelect: false, options: [{ label: "A" }] }]],
+  ["multiSelect false is single-select", { ...probe, correct: "A" }, [{ question: "Q?", multiSelect: false, options: [{ label: "A" }] }]],
 ];
 
 for (const [name, event, questions] of VALID) {
@@ -44,11 +44,11 @@ const multiSelect = (labels) => [{ question: "Q?", multiSelect: true, options: l
 const INVALID = [
   ["v is 2", { ...probe, v: 2 }, ABC, [/^tag: v is 2/]],
   ["v is the string 1", { ...probe, v: "1" }, ABC, [/^tag: v is "1"/]],
-  ["v missing", { app: "sensei-teach", kind: "probe", topic: "dns" }, ABC, [/^tag: v is undefined/]],
+  ["v missing", { app: "sensei-teach", kind: "probe", topic: "dns", correct: "B" }, ABC, [/^tag: v is undefined/]],
   ["unknown kind", { ...TAG, kind: "quiz" }, ABC, [/^tag: kind "quiz" is not one of probe, goal, node, plan, wrap, other/]],
   ["kind missing", { ...TAG }, ABC, [/^tag: kind undefined is not one of/]],
 
-  ["probe without topic", { ...TAG, kind: "probe" }, ABC, [/^probe tag: topic must be a non-empty string/]],
+  ["probe without topic", { ...TAG, kind: "probe", correct: "B" }, ABC, [/^probe tag: topic must be a non-empty string/]],
   ["probe with empty topic", { ...probe, topic: "" }, ABC, [/^probe tag: topic must be a non-empty string/]],
   ["probe with non-string topic", { ...probe, topic: 4 }, ABC, [/^probe tag: topic must be a non-empty string/]],
   ["goal without goal", { ...goal, goal: undefined }, ABC, [/^goal tag: goal must be a non-empty string/]],
@@ -102,6 +102,11 @@ const INVALID = [
   ["wrap with 2 questions", wrap, [...WRAP_OPTS, ...WRAP_OPTS], [/^wrap tag: call has 2 questions; send exactly one question per call$/]],
   ["wrap with zero questions", wrap, [], [/^wrap tag: call has 0 questions/]],
   ["wrap multi-select", wrap, multiSelect(["I'm done", "Other"]), [/^wrap tag: question is multi-select/]],
+  ["probe without correct", { ...probe, correct: undefined }, ABC, [/^probe tag: correct undefined matches none of the option labels \["A","B","I don't know"\]; set it to the exact label of the correct option$/]],
+  ["probe correct matches no label", { ...probe, correct: "Z" }, ABC, [/^probe tag: correct "Z" matches none of the option labels/]],
+  ["probe correct differs by case", { ...probe, correct: "b" }, ABC, [/^probe tag: correct "b" matches none/]],
+  ["probe correct differs by trailing space", { ...probe, correct: "B " }, ABC, [/^probe tag: correct "B " matches none/]],
+  ["probe correct missing while an option has no label", { ...probe, correct: undefined }, [{ question: "Q?", options: [{ description: "x" }, { label: "B" }] }], [/^probe tag: correct undefined matches none/]],
   ["several problems are all reported in one pass", { ...node, topic: undefined, correct: "Z" }, multi, [/topic must be/, /call has 2 questions/, /correct "Z" matches none/]],
 ];
 

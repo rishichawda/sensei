@@ -31,7 +31,10 @@ export function validateTeachEvent(event, questions) {
     else if (qs[0]?.multiSelect === true) problems.push(`${at}: question is multi-select; use a single-select question`);
   }
 
-  if (kind === "probe") requireText("topic");
+  if (kind === "probe") {
+    requireText("topic");
+    requireLabel("correct");
+  }
 
   if (kind === "goal") {
     requireText("topic");

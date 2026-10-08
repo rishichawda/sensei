@@ -165,7 +165,7 @@ test("checkDeny denies a tagged call with no questions and does not throw", () =
 
 test("checkDeny allows a valid tag of every recorded kind, active or not", () => {
   const events = [
-    [{ app: "sensei-teach", v: 1, kind: "probe", topic: "dns" }, ["A", "B"]],
+    [{ app: "sensei-teach", v: 1, kind: "probe", topic: "dns", correct: "A" }, ["A", "B"]],
     [{ app: "sensei-teach", v: 1, kind: "goal", topic: "dns", goal: "g" }, ["A", "B"]],
     [NODE_TAG, ["A", "B", "I don't know"]],
     [{ app: "sensei-teach", v: 1, kind: "plan", topic: "dns", approve: "Looks good", plan: { nodes: ["a", "b"], edges: [["a", "b"]] } }, ["Looks good", "I have changes"]],
