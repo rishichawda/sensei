@@ -34,6 +34,9 @@ export function validateTeachEvent(event, questions) {
   if (kind === "probe") {
     requireText("topic");
     requireLabel("correct");
+    if (event.strand !== undefined && !(typeof event.strand === "string" && event.strand.trim().length > 0)) {
+      problems.push(`${at}: strand must be a non-empty string; name the prerequisite thread this question tests, or leave strand out`);
+    }
   }
 
   if (kind === "goal") {

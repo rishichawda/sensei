@@ -28,6 +28,7 @@ const VALID = [
   ["other with multi-select", { ...TAG, kind: "other" }, [{ question: "Q?", multiSelect: true, options: [{ label: "x" }] }]],
   ["other with no questions", { ...TAG, kind: "other" }, []],
   ["extra fields are allowed", { ...probe, note: "x" }, ABC],
+  ["probe with a strand", { ...probe, strand: "heat" }, ABC],
   ["multiSelect false is single-select", { ...probe, correct: "A" }, [{ question: "Q?", multiSelect: false, options: [{ label: "A" }] }]],
 ];
 
@@ -51,6 +52,11 @@ const INVALID = [
   ["probe without topic", { ...TAG, kind: "probe", correct: "B" }, ABC, [/^probe tag: topic must be a non-empty string/]],
   ["probe with empty topic", { ...probe, topic: "" }, ABC, [/^probe tag: topic must be a non-empty string/]],
   ["probe with non-string topic", { ...probe, topic: 4 }, ABC, [/^probe tag: topic must be a non-empty string/]],
+  ["probe with an empty strand", { ...probe, strand: "" }, ABC, [/^probe tag: strand must be a non-empty string/]],
+  ["probe with a whitespace-only strand", { ...probe, strand: "  \t" }, ABC, [/^probe tag: strand must be a non-empty string/]],
+  ["probe with a number as strand", { ...probe, strand: 3 }, ABC, [/^probe tag: strand must be a non-empty string/]],
+  ["probe with an array as strand", { ...probe, strand: ["heat"] }, ABC, [/^probe tag: strand must be a non-empty string/]],
+  ["probe with a null strand", { ...probe, strand: null }, ABC, [/^probe tag: strand must be a non-empty string/]],
   ["goal without goal", { ...goal, goal: undefined }, ABC, [/^goal tag: goal must be a non-empty string/]],
   ["goal without topic", { ...goal, topic: undefined }, ABC, [/^goal tag: topic must be a non-empty string/]],
 
