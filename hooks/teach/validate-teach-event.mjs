@@ -88,9 +88,9 @@ function validatePlan(plan, at, problems) {
       problems.push(`${at}: plan.edges[${i}] must be a [from, to] pair`);
       return;
     }
-    if (!nodesOk) return;
+    if (!Array.isArray(plan.nodes)) return;
     for (const end of edge) {
-      if (!plan.nodes.includes(end)) problems.push(`${at}: plan.edges[${i}] refers to ${JSON.stringify(end)}, which is not in plan.nodes`);
+      if (!plan.nodes.some((id) => isText(id) && id === end)) problems.push(`${at}: plan.edges[${i}] refers to ${JSON.stringify(end)}, which is not in plan.nodes`);
     }
   });
 }

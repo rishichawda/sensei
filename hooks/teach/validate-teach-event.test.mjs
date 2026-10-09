@@ -81,6 +81,9 @@ const INVALID = [
   ["plan.edges entry is not an array", { ...plan, plan: { nodes: ["a", "b"], edges: ["a-b"] } }, APPROVE, [/^plan tag: plan\.edges\[0\] must be a \[from, to\] pair/]],
   ["plan.edges refers to an unknown node", { ...plan, plan: { nodes: ["a", "b", "c"], edges: [["a", "b"], ["b", "c"], ["c", "foo"]] } }, APPROVE, [/^plan tag: plan\.edges\[2\] refers to "foo", which is not in plan\.nodes$/]],
   ["plan.edges refers to unknown nodes at both ends", { ...plan, plan: { nodes: ["a"], edges: [["x", "y"]] } }, APPROVE, [/refers to "x"/, /refers to "y"/]],
+  ["plan.nodes holds an empty string and an edge refers to an unknown node", { ...plan, plan: { nodes: ["a", ""], edges: [["a", "zzz"]] } }, APPROVE, [/plan\.nodes must be a non-empty array/, /plan\.edges\[0\] refers to "zzz", which is not in plan\.nodes$/]],
+  ["plan.nodes holds a non-string and an edge uses only valid nodes", { ...plan, plan: { nodes: ["a", "b", 2], edges: [["a", "b"]] } }, APPROVE, [/plan\.nodes must be a non-empty array/]],
+  ["plan.nodes not an array leaves the edges unchecked", { ...plan, plan: { nodes: "a", edges: [["a", "zzz"]] } }, APPROVE, [/plan\.nodes must be a non-empty array/]],
 
   ["probe with 2 questions", probe, multi, [/^probe tag: call has 2 questions; send exactly one question per call$/]],
   ["goal with 2 questions", goal, multi, [/^goal tag: call has 2 questions; send exactly one question per call$/]],
