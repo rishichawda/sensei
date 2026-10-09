@@ -212,6 +212,8 @@ function main() {
       // Resume skips Phase 1 for these rows, so the probe log is only token cost here.
       const { probes, ...withoutProbes } = session;
       console.log(JSON.stringify(withoutProbes));
+    } else if (session) {
+      console.log(JSON.stringify({ ...session, ...summarizeStrands(session.probes) }));
     } else {
       console.log(JSON.stringify(session));
     }

@@ -743,12 +743,45 @@ function ledgerWithProbes(status) {
   return tl;
 }
 
+function intakeLedgerWithStrands() {
+  let tl = setSessionGoal(emptyTopicLedger(), "jammy yolk and easy peeling", T1);
+  tl = addProbe(tl, { question: "Q1", answer: "A", result: "passed", strand: "heat" }, T1);
+  tl = addProbe(tl, { question: "Q2", answer: "B", result: "failed", strand: "heat" }, T1);
+  tl = addProbe(tl, { question: "Q3", answer: "A", result: "passed", strand: "peeling" }, T1);
+  tl = addProbe(tl, { question: "Q4", answer: "A", result: "passed" }, T1);
+  return tl;
+}
+
 test("CLI get-session prints the probe log for an intake row", () => {
   const configDir = freshConfigDir();
   withConfigDir(configDir, () => writeTopicLedger("javascript", ledgerWithProbes("intake")));
   const printed = cliGetSession(configDir);
   assert.equal(printed.status, "intake");
   assert.equal(printed.probes.length, 1);
+});
+
+test("CLI get-session prints strands and unassigned for an intake row, and does not rewrite the ledger", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => writeTopicLedger("javascript", intakeLedgerWithStrands()));
+  const file = join(configDir, "sensei", "ledgers", "javascript.json");
+  const before = readFileSync(file, "utf8");
+  const printed = cliGetSession(configDir);
+  assert.equal(printed.status, "intake");
+  assert.equal(printed.probes.length, 4);
+  assert.deepEqual(printed.strands, [
+    { name: "heat", passed: 1, failed: 1, bracketed: true },
+    { name: "peeling", passed: 1, failed: 0, bracketed: false },
+  ]);
+  assert.equal(printed.unassigned, 1);
+  assert.equal(readFileSync(file, "utf8"), before);
+});
+
+test("CLI get-session prints an empty strand summary for an intake row with no probes", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => writeTopicLedger("javascript", setSessionGoal(emptyTopicLedger(), "learn closures", T1)));
+  const printed = cliGetSession(configDir);
+  assert.deepEqual(printed.strands, []);
+  assert.equal(printed.unassigned, 0);
 });
 
 for (const status of ["planned", "in-progress", "complete"]) {
@@ -760,6 +793,8 @@ for (const status of ["planned", "in-progress", "complete"]) {
     const printed = cliGetSession(configDir);
     assert.equal(printed.status, status);
     assert.equal("probes" in printed, false);
+    assert.equal("strands" in printed, false);
+    assert.equal("unassigned" in printed, false);
     assert.equal(printed.goal, "learn closures");
     assert.equal(readFileSync(file, "utf8"), before);
     assert.equal(JSON.parse(before).session.probes.length, 1, "the stored row keeps its probes");
@@ -771,7 +806,10 @@ test("CLI get-session does not throw on an intake row whose probes value is malf
   let tl = touchSession(emptyTopicLedger(), T1);
   tl = { ...tl, session: { ...tl.session, probes: "not an array" } };
   withConfigDir(configDir, () => writeTopicLedger("javascript", tl));
-  assert.equal(cliGetSession(configDir).status, "intake");
+  const printed = cliGetSession(configDir);
+  assert.equal(printed.status, "intake");
+  assert.deepEqual(printed.strands, []);
+  assert.equal(printed.unassigned, 0);
 });
 
 test("normalizeStrand trims, lowercases and collapses inner whitespace", () => {
