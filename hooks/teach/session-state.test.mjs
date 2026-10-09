@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { markActive, isActive, clearActive } from "./session-state.mjs";
+import { markActive, isActive, clearActive, markTeachInvoked, isTeachInvoked } from "./session-state.mjs";
 
 function freshTranscriptPath() {
   const dir = mkdtempSync(join(tmpdir(), "teach-session-state-test-"));
@@ -57,4 +57,22 @@ test("a cleared session can be marked active again", () => {
   clearActive(transcript);
   markActive(transcript);
   assert.equal(isActive(transcript), true);
+});
+
+test("isTeachInvoked is false until markTeachInvoked, and marking one transcript leaves a sibling alone", () => {
+  const a = freshTranscriptPath();
+  const b = freshTranscriptPath();
+  assert.equal(isTeachInvoked(a), false);
+  markTeachInvoked(a);
+  assert.equal(isTeachInvoked(a), true);
+  assert.equal(isTeachInvoked(b), false);
+});
+
+test("the invoked flag and the active marker are independent, and clearActive keeps the invoked flag", () => {
+  const transcript = freshTranscriptPath();
+  markTeachInvoked(transcript);
+  assert.equal(isActive(transcript), false, "invoking teach alone must not enforce tagging");
+  markActive(transcript);
+  clearActive(transcript);
+  assert.equal(isTeachInvoked(transcript), true, "a done wrap releases enforcement, not the fact that teach ran");
 });

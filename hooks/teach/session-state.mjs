@@ -8,6 +8,21 @@ function markerPathFor(transcriptPath) {
   return `${transcriptPath}.teach-active-state.json`;
 }
 
+// Records that the teach skill was started in this session, by the typed
+// /sensei:teach command or by a Skill tool call. mark-active.mjs requires it,
+// so running scripts/mastery.mjs from a developer shell does not enforce tagging.
+function invokedPathFor(transcriptPath) {
+  return `${transcriptPath}.teach-invoked-state.json`;
+}
+
+export function markTeachInvoked(transcriptPath) {
+  writeFileSync(invokedPathFor(transcriptPath), JSON.stringify({ invoked: true }), "utf8");
+}
+
+export function isTeachInvoked(transcriptPath) {
+  return existsSync(invokedPathFor(transcriptPath));
+}
+
 export function markActive(transcriptPath) {
   writeFileSync(markerPathFor(transcriptPath), JSON.stringify({ active: true }), "utf8");
 }

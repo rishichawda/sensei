@@ -1,10 +1,10 @@
-import { markActive } from "./session-state.mjs";
+import { markActive, isTeachInvoked } from "./session-state.mjs";
 
 // scripts/mastery.mjs is only ever *run* by the teach skill's own protocol
 // (mastery-ledger-protocol.md Section A), so a Bash command whose program is
 // `node <...>/scripts/mastery.mjs` is an unambiguous, structural signal that a
-// teach session's probe/plan loop has started — no need to parse Skill
-// tool_input. Merely mentioning the path (grep, git diff, cat, a dev reading
+// teach session's probe/plan loop has started, once mark-invoked.mjs has seen
+// the skill start in this session. Merely mentioning the path (grep, git diff, cat, a dev reading
 // the file) must not count: the marker is cleared only by a learner-confirmed `wrap`
 // (see mastery-record.mjs), so a false positive would enforce tagging for the
 // rest of an unrelated session. The marker is per-transcript, so it never
@@ -37,6 +37,9 @@ async function main() {
   const command = payload.tool_input?.command;
   if (typeof command !== "string" || !isMasteryInvocation(command)) return;
   if (!payload.transcript_path) return;
+  // Running the ledger CLI is not enough: a developer inspecting a ledger from a
+  // shell runs it too. The teach skill must also have been started in this session.
+  if (!isTeachInvoked(payload.transcript_path)) return;
   markActive(payload.transcript_path);
 }
 

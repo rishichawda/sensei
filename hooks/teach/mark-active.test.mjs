@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isMasteryInvocation } from "./mark-active.mjs";
+import { markTeachInvoked } from "./session-state.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./mark-active.mjs", import.meta.url));
 
@@ -18,8 +19,9 @@ function markerPathFor(transcriptPath) {
   return `${transcriptPath}.teach-active-state.json`;
 }
 
-test("main() marks active for a Bash command that runs scripts/mastery.mjs", () => {
+test("main() marks active for a Bash command that runs scripts/mastery.mjs once teach was invoked in the session", () => {
   const transcript = freshTranscriptPath();
+  markTeachInvoked(transcript);
   execFileSync(process.execPath, [SCRIPT], {
     input: JSON.stringify({
       hook_event_name: "PostToolUse",
@@ -104,6 +106,19 @@ test("main() does not mark active for a grep of scripts/mastery.mjs, so a dev se
       hook_event_name: "PostToolUse",
       tool_name: "Bash",
       tool_input: { command: "grep -n recordNode scripts/mastery.mjs" },
+      transcript_path: transcript,
+    }),
+  });
+  assert.equal(existsSync(markerPathFor(transcript)), false);
+});
+
+test("main() does not mark active when scripts/mastery.mjs is run in a session that never invoked teach, so a developer inspecting a ledger is not enforced", () => {
+  const transcript = freshTranscriptPath();
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "Bash",
+      tool_input: { command: 'node "/plugin/scripts/mastery.mjs" get-session "t"' },
       transcript_path: transcript,
     }),
   });
