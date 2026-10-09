@@ -4,8 +4,21 @@ import { resolve, extname } from "node:path";
 import { writeState, findCurrentTranscript } from "./lib.mjs";
 import { backfill } from "./session-start.mjs";
 
+// The command passes the typed arguments on stdin, because a shell word split
+// would break a path with spaces; a pair of quotes the user typed is dropped.
+function readPathFromStdin() {
+  if (process.stdin.isTTY) return "";
+  let text;
+  try {
+    text = readFileSync(0, "utf8");
+  } catch {
+    return "";
+  }
+  return text.trim().replace(/^(["'])(.*)\1$/, "$2");
+}
+
 function main() {
-  const filepath = process.argv[2];
+  const filepath = process.argv[2] ?? readPathFromStdin();
   if (!filepath) {
     console.log("Usage: /md-log <filepath>");
     return;

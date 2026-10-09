@@ -233,3 +233,38 @@ test("link.mjs accepts an upper-case .MD extension", () => {
 
   assert.match(output, /Linked:/);
 });
+
+function linkViaStdin(input, sessionId) {
+  const { configRoot, projectDir } = setupProject();
+  writeFileSync(join(projectDir, `${sessionId}.jsonl`), "", "utf8");
+  return execFileSync(process.execPath, [SCRIPT], {
+    input,
+    env: { ...process.env, CLAUDE_CONFIG_DIR: configRoot, CLAUDE_CODE_SESSION_ID: sessionId },
+  }).toString();
+}
+
+test("link.mjs reads the path from stdin when it has no argument, so a path with spaces and an apostrophe stays one path", () => {
+  const targetDir = join(mkdtempSync(join(tmpdir(), "md-log-link-target-")), "my vault", "Rishi's notes");
+  mkdirSync(targetDir, { recursive: true });
+  const targetFile = join(targetDir, "day one.md");
+  writeFileSync(targetFile, "", "utf8");
+
+  const output = linkViaStdin(`${targetFile}\n`, "session-stdin");
+  assert.match(output, /Linked:/);
+  assert.ok(output.includes(targetFile), output);
+});
+
+test("link.mjs strips one pair of quotes around a path read from stdin", () => {
+  const targetFile = join(mkdtempSync(join(tmpdir(), "md-log-link-target-")), "quoted note.md");
+  writeFileSync(targetFile, "", "utf8");
+
+  for (const quote of ['"', "'"]) {
+    const output = linkViaStdin(`${quote}${targetFile}${quote}\n`, `session-quoted-${quote === '"' ? "d" : "s"}`);
+    assert.match(output, /Linked:/, quote);
+    assert.ok(output.includes(targetFile), output);
+  }
+});
+
+test("link.mjs prints the usage line when there is no argument and stdin is empty", () => {
+  assert.match(linkViaStdin("", "session-nopath"), /Usage: \/md-log <filepath>/);
+});
