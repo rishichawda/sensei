@@ -155,10 +155,17 @@ export function recordNode(topicLedger, nodeId, status, now = new Date()) {
   return { ...topicLedger, nodes };
 }
 
+// The log keeps the 20 newest probes. An evicted probe's passed/failed result is folded into
+// session.foldedStrands so a strand that was bracketed stays bracketed.
 export function addProbe(topicLedger, entry, now = new Date()) {
   const base = touchSession(topicLedger, now);
   const probes = Array.isArray(base.session.probes) ? base.session.probes : [];
-  const session = { ...base.session, probes: [...probes, { ...entry, at: now.toISOString() }].slice(-PROBE_LOG_MAX), updatedAt: now.toISOString() };
+  const all = [...probes, { ...entry, at: now.toISOString() }];
+  const kept = all.slice(-PROBE_LOG_MAX);
+  const session = { ...base.session, probes: kept, updatedAt: now.toISOString() };
+  if (kept.length < all.length) {
+    session.foldedStrands = tallyStrands(base.session.foldedStrands, all.slice(0, all.length - kept.length)).totals;
+  }
   return { ...base, session };
 }
 
@@ -169,11 +176,24 @@ export function normalizeStrand(value) {
   return name === "" ? undefined : name;
 }
 
-// Which strands the probe log has already bracketed (a passed and a failed probe) is a fact
-// about the log, so code reads it; the model only reads the result. A Map keeps names such as
-// "__proto__" ordinary.
-export function summarizeStrands(probes) {
+const asCount = (value) => (Number.isInteger(value) && value > 0 ? value : 0);
+
+// Adds the probes' results to the folded counts, per normalized strand name, in order of first
+// appearance. A Map keeps names such as "__proto__" ordinary. Folded entries that are not
+// {name, passed, failed} are ignored.
+function tallyStrands(foldedStrands, probes) {
   const byName = new Map();
+  const counts = (name) => {
+    if (!byName.has(name)) byName.set(name, { name, passed: 0, failed: 0 });
+    return byName.get(name);
+  };
+  for (const folded of Array.isArray(foldedStrands) ? foldedStrands : []) {
+    const name = normalizeStrand(folded?.name);
+    if (name === undefined) continue;
+    const tally = counts(name);
+    tally.passed += asCount(folded.passed);
+    tally.failed += asCount(folded.failed);
+  }
   let unassigned = 0;
   for (const probe of Array.isArray(probes) ? probes : []) {
     const name = normalizeStrand(probe?.strand);
@@ -181,13 +201,18 @@ export function summarizeStrands(probes) {
       unassigned += 1;
       continue;
     }
-    if (!byName.has(name)) byName.set(name, { name, passed: 0, failed: 0 });
-    const counts = byName.get(name);
-    if (probe.result === "passed") counts.passed += 1;
-    else if (probe.result === "failed") counts.failed += 1;
+    const tally = counts(name);
+    if (probe.result === "passed") tally.passed += 1;
+    else if (probe.result === "failed") tally.failed += 1;
   }
-  const strands = [...byName.values()].map((counts) => ({ ...counts, bracketed: counts.passed >= 1 && counts.failed >= 1 }));
-  return { strands, unassigned };
+  return { totals: [...byName.values()], unassigned };
+}
+
+// Which strands the probe log has already bracketed (a passed and a failed probe) is a fact
+// about the log and the probes folded out of it, so code reads it; the model only reads the result.
+export function summarizeStrands(probes, foldedStrands) {
+  const { totals, unassigned } = tallyStrands(foldedStrands, probes);
+  return { strands: totals.map((tally) => ({ ...tally, bracketed: tally.passed >= 1 && tally.failed >= 1 })), unassigned };
 }
 
 function main() {
@@ -211,10 +236,11 @@ function main() {
     const session = deriveSession(readTopicLedger(slugify(topicArg)));
     if (session && session.status !== "intake") {
       // Resume skips Phase 1 for these rows, so the probe log is only token cost here.
-      const { probes, ...withoutProbes } = session;
+      const { probes, foldedStrands, ...withoutProbes } = session;
       console.log(JSON.stringify(withoutProbes));
     } else if (session) {
-      console.log(JSON.stringify({ ...session, ...summarizeStrands(session.probes) }));
+      const { foldedStrands, ...printed } = session;
+      console.log(JSON.stringify({ ...printed, ...summarizeStrands(session.probes, foldedStrands) }));
     } else {
       console.log(JSON.stringify(session));
     }

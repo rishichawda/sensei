@@ -892,3 +892,85 @@ test("summarizeStrands returns an empty summary for missing or malformed probes"
     assert.deepEqual(summarizeStrands(probes), { strands: [], unassigned: 0 }, String(probes));
   }
 });
+
+function addProbes(tl, count, entry) {
+  for (let i = 0; i < count; i++) tl = addProbe(tl, { question: `Q${i}`, answer: "A", ...entry }, T1);
+  return tl;
+}
+
+function bracketedLedgerThenEvicted() {
+  let tl = addProbe(emptyTopicLedger(), { question: "Q", answer: "A", result: "passed", strand: "heat" }, T1);
+  tl = addProbe(tl, { question: "Q", answer: "B", result: "failed", strand: "heat" }, T1);
+  return addProbes(tl, 19, { result: "passed", strand: "peeling" });
+}
+
+test("a strand stays bracketed after its probes are evicted from the 20-entry log", () => {
+  const { probes, foldedStrands } = bracketedLedgerThenEvicted().session;
+  assert.equal(probes.length, 20);
+  assert.deepEqual(summarizeStrands(probes, foldedStrands).strands, [
+    { name: "heat", passed: 1, failed: 1, bracketed: true },
+    { name: "peeling", passed: 19, failed: 0, bracketed: false },
+  ]);
+});
+
+test("addProbe keeps nothing in foldedStrands while the log is not over the cap", () => {
+  const tl = addProbes(emptyTopicLedger(), 20, { result: "passed", strand: "heat" });
+  assert.equal(tl.session.probes.length, 20);
+  assert.equal("foldedStrands" in tl.session, false);
+});
+
+test("addProbe adds the counts of folded and logged probes of one name", () => {
+  let tl = addProbes(emptyTopicLedger(), 21, { result: "failed", strand: "Heat " });
+  tl = addProbe(tl, { question: "Q", answer: "A", result: "passed", strand: "heat" }, T1);
+  const { probes, foldedStrands } = tl.session;
+  assert.deepEqual(summarizeStrands(probes, foldedStrands).strands, [{ name: "heat", passed: 1, failed: 21, bracketed: true }]);
+});
+
+test("addProbe drops an evicted probe with no strand, and keeps the name of one with a strand and no result", () => {
+  let tl = addProbe(emptyTopicLedger(), { question: "Q", answer: "A", result: "passed" }, T1);
+  tl = addProbe(tl, { question: "Q", answer: "A", strand: "heat" }, T1);
+  tl = addProbes(tl, 20, { result: "passed", strand: "peeling" });
+  assert.deepEqual(tl.session.foldedStrands, [{ name: "heat", passed: 0, failed: 0 }]);
+  assert.equal(summarizeStrands(tl.session.probes, tl.session.foldedStrands).unassigned, 0);
+});
+
+test("addProbe works on a session row that has no foldedStrands and a full log", () => {
+  let tl = addProbes(emptyTopicLedger(), 20, { result: "passed", strand: "heat" });
+  tl = { ...tl, session: { ...tl.session } };
+  delete tl.session.foldedStrands;
+  tl = addProbe(tl, { question: "Q", answer: "A", result: "failed", strand: "heat" }, T1);
+  assert.equal(tl.session.probes.length, 20);
+  assert.deepEqual(tl.session.foldedStrands, [{ name: "heat", passed: 1, failed: 0 }]);
+});
+
+test("summarizeStrands ignores a malformed foldedStrands value and its bad entries", () => {
+  const probes = [{ result: "passed", strand: "heat" }];
+  const alone = { strands: [{ name: "heat", passed: 1, failed: 0, bracketed: false }], unassigned: 0 };
+  for (const folded of [undefined, null, "x", 42, {}]) assert.deepEqual(summarizeStrands(probes, folded), alone, String(folded));
+  const bad = [null, "x", { passed: 1, failed: 1 }, { name: "  ", passed: 1, failed: 1 }, { name: "heat", passed: -1, failed: 1.5 }];
+  assert.deepEqual(summarizeStrands(probes, bad), alone);
+});
+
+test("CLI get-session never prints foldedStrands, but its counts show in strands", () => {
+  const configDir = freshConfigDir();
+  for (const status of ["intake", "in-progress"]) {
+    let tl = bracketedLedgerThenEvicted();
+    if (status !== "intake") {
+      tl = setSessionGoal(tl, "g", T1);
+      tl = setSessionPlan(tl, { nodes: ["a", "b"], edges: [] }, T1);
+      tl = recordNode(tl, "a", "failed", T1);
+    }
+    withConfigDir(configDir, () => writeTopicLedger("javascript", tl));
+    const printed = cliGetSession(configDir);
+    assert.equal("foldedStrands" in printed, false, status);
+    if (status === "intake") assert.equal(printed.strands.find((s) => s.name === "heat").bracketed, true);
+  }
+});
+
+test("a new goal on a row past intake starts a session row without foldedStrands", () => {
+  let tl = bracketedLedgerThenEvicted();
+  tl = setSessionPlan(setSessionGoal(tl, "g", T1), { nodes: ["a"], edges: [] }, T1);
+  assert.ok(tl.session.foldedStrands);
+  tl = setSessionGoal(tl, "something else", T1);
+  assert.equal("foldedStrands" in tl.session, false);
+});
