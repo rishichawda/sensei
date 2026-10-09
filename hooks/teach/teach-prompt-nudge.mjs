@@ -4,6 +4,8 @@
 // a row (only the explicit /sensei:teach slash command worked). This is not
 // an intent classifier — just the handful of phrasings that actually showed
 // up failing, per surgical-patch scope.
+import { isActive } from "./session-state.mjs";
+
 const TRIGGER_PATTERNS = [/\bteach me\b/i, /\bcontinue teaching\b/i, /\bresume teaching\b/i];
 
 export function checkPrompt(prompt) {
@@ -21,6 +23,10 @@ async function main() {
   } catch {
     return;
   }
+  // The nudge exists for a fresh session. While a teach session is active (marker
+  // cleared only when the learner confirms done) a "teach me that again" is part
+  // of the lesson, not a request to start one.
+  if (payload?.transcript_path && isActive(payload.transcript_path)) return;
   const output = checkPrompt(payload?.prompt);
   if (output) process.stdout.write(output);
 }

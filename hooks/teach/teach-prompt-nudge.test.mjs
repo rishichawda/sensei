@@ -2,7 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { checkPrompt } from "./teach-prompt-nudge.mjs";
+import { clearActive, markActive } from "./session-state.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./teach-prompt-nudge.mjs", import.meta.url));
 
@@ -39,4 +43,23 @@ test("main() prints the nudge for a matching prompt", () => {
 
 test("main() survives unparseable JSON on stdin without crashing", () => {
   assert.doesNotThrow(() => execFileSync(process.execPath, [SCRIPT], { input: "not json" }));
+});
+
+function runNudge(prompt, transcriptPath) {
+  return execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({ prompt, transcript_path: transcriptPath }),
+  }).toString();
+}
+
+test("main() prints nothing while the teach session is active, and nudges again once it is cleared", () => {
+  const dir = mkdtempSync(join(tmpdir(), "nudge-"));
+  const transcript = join(dir, "t.jsonl");
+  try {
+    markActive(transcript);
+    assert.equal(runNudge("teach me that again", transcript), "");
+    clearActive(transcript);
+    assert.match(runNudge("teach me rust", transcript), /Skill\(sensei:teach\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
