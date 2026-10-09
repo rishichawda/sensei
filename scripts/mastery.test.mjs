@@ -833,6 +833,12 @@ test("normalizeStrand cuts a long label to 60 characters and trims the end of th
   assert.equal(normalizeStrand("a".repeat(59) + " b"), "a".repeat(59));
 });
 
+test("normalizeStrand cuts by code point, so a character past the BMP is kept whole or dropped whole", () => {
+  assert.equal(normalizeStrand("a".repeat(59) + "\u{1F600}b"), "a".repeat(59) + "\u{1F600}");
+  assert.equal(normalizeStrand("a".repeat(60) + "\u{1F600}"), "a".repeat(60));
+  assert.doesNotMatch(normalizeStrand("a".repeat(59) + "\u{1F600}b"), /[\ud800-\udbff](?![\udc00-\udfff])/);
+});
+
 test("summarizeStrands counts passed and failed per strand and flags a strand only when it has both", () => {
   const probes = [
     { result: "passed", strand: "heat" },
