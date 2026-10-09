@@ -129,6 +129,14 @@ test("applyTeachEvent truncates a long probe question and a long free-text answe
   assert.ok(entry.question.endsWith("…") && entry.answer.endsWith("…"));
 });
 
+test("applyTeachEvent stores nothing for a probe that has no string answer", () => {
+  for (const answer of [undefined, null, 42]) {
+    const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), probeEvent(), answer, PROBE_OPTIONS, PROBE_NOW, "Q?");
+    assert.match(diagnostic, /probe has no answer, nothing recorded/, String(answer));
+    assert.equal(getSession(ledger)?.probes, undefined, `no probe may be stored for ${String(answer)}`);
+  }
+});
+
 test("applyTeachEvent stores nothing and returns a diagnostic for a probe whose correct matches no option", () => {
   const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), probeEvent({ correct: "Z" }), "A", PROBE_OPTIONS, PROBE_NOW, "Q?");
   assert.match(diagnostic, /probe correct value "Z" does not match any option label/);

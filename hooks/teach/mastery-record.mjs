@@ -43,6 +43,9 @@ export function applyTeachEvent(topicLedger, event, answerText, optionLabels, no
   }
 
   if (event.kind === "probe") {
+    if (typeof answerText !== "string") {
+      return { ledger: next, diagnostic: "teach: probe has no answer, nothing recorded" };
+    }
     const result = gradeAnswer(event, answerText, optionLabels);
     if (result === "invalid") {
       return { ledger: next, diagnostic: `teach: probe correct value "${event.correct}" does not match any option label` };
