@@ -1,4 +1,4 @@
-import { readTopicLedger, writeTopicLedger, recordNode, touchSession, setSessionGoal, setSessionPlan, advanceSession, addProbe, slugify } from "../../scripts/mastery.mjs";
+import { readTopicLedger, writeTopicLedger, recordNode, touchSession, setSessionGoal, setSessionPlan, advanceSession, addProbe, slugify, normalizeStrand } from "../../scripts/mastery.mjs";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { clearActive } from "./session-state.mjs";
@@ -50,7 +50,10 @@ export function applyTeachEvent(topicLedger, event, answerText, optionLabels, no
     if (result === "invalid") {
       return { ledger: next, diagnostic: `teach: probe correct value "${event.correct}" does not match any option label` };
     }
-    next = addProbe(next, { question: truncate(questionText), answer: truncate(answerText), result }, now);
+    const entry = { question: truncate(questionText), answer: truncate(answerText), result };
+    const strand = normalizeStrand(event.strand);
+    if (strand !== undefined) entry.strand = strand;
+    next = addProbe(next, entry, now);
     return { ledger: next };
   }
 

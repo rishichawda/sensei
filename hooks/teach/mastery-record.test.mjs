@@ -120,6 +120,26 @@ test("applyTeachEvent stores failed for a wrong option, for I don't know, and fo
   }
 });
 
+test("applyTeachEvent stores the normalized strand on a probe", () => {
+  const { ledger } = applyTeachEvent(emptyTopicLedger(), probeEvent({ strand: "  Heat  Time " }), "A", PROBE_OPTIONS, PROBE_NOW, "Q?");
+  assert.deepEqual(getSession(ledger).probes, [{ question: "Q?", answer: "A", result: "passed", strand: "heat time", at: "2026-01-01T00:00:00.000Z" }]);
+});
+
+test("applyTeachEvent cuts a long strand to 60 characters", () => {
+  const { ledger } = applyTeachEvent(emptyTopicLedger(), probeEvent({ strand: "s".repeat(100) }), "A", PROBE_OPTIONS, PROBE_NOW, "Q?");
+  assert.equal(getSession(ledger).probes[0].strand, "s".repeat(60));
+});
+
+test("applyTeachEvent stores no strand key for a probe sent without one, or with an unusable one, and still stores the result", () => {
+  for (const extra of [{}, { strand: "" }, { strand: "   " }, { strand: 5 }, { strand: null }, { strand: ["heat"] }]) {
+    const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), probeEvent(extra), "A", PROBE_OPTIONS, PROBE_NOW, "Q?");
+    assert.equal(diagnostic, undefined, JSON.stringify(extra));
+    const [entry] = getSession(ledger).probes;
+    assert.equal("strand" in entry, false, JSON.stringify(extra));
+    assert.equal(entry.result, "passed");
+  }
+});
+
 test("applyTeachEvent truncates a long probe question and a long free-text answer to 150 characters", () => {
   const long = "x".repeat(400);
   const { ledger } = applyTeachEvent(emptyTopicLedger(), probeEvent(), long, PROBE_OPTIONS, PROBE_NOW, long);
