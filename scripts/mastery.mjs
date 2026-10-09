@@ -164,7 +164,7 @@ export function addProbe(topicLedger, entry, now = new Date()) {
 
 export function normalizeStrand(value) {
   if (typeof value !== "string") return undefined;
-  const name = value.trim().toLowerCase().replace(/\s+/g, " ").slice(0, STRAND_NAME_MAX).trimEnd();
+  const name = value.replace(/[\u200b-\u200d\ufeff]/g, "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, STRAND_NAME_MAX).trimEnd();
   return name === "" ? undefined : name;
 }
 

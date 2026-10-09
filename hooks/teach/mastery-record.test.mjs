@@ -131,7 +131,7 @@ test("applyTeachEvent cuts a long strand to 60 characters", () => {
 });
 
 test("applyTeachEvent stores no strand key for a probe sent without one, or with an unusable one, and still stores the result", () => {
-  for (const extra of [{}, { strand: "" }, { strand: "   " }, { strand: 5 }, { strand: null }, { strand: ["heat"] }]) {
+  for (const extra of [{}, { strand: "" }, { strand: "   " }, { strand: "\u200b" }, { strand: 5 }, { strand: null }, { strand: ["heat"] }]) {
     const { ledger, diagnostic } = applyTeachEvent(emptyTopicLedger(), probeEvent(extra), "A", PROBE_OPTIONS, PROBE_NOW, "Q?");
     assert.equal(diagnostic, undefined, JSON.stringify(extra));
     const [entry] = getSession(ledger).probes;

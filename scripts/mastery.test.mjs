@@ -818,9 +818,14 @@ test("normalizeStrand trims, lowercases and collapses inner whitespace", () => {
 });
 
 test("normalizeStrand returns undefined for anything that is not a non-blank string", () => {
-  for (const value of [undefined, null, 4, ["heat"], {}, "", "   ", "\t\n"]) {
+  for (const value of [undefined, null, 4, ["heat"], {}, "", "   ", "\t\n", "\u200b", "\u200b\u200c\ufeff"]) {
     assert.equal(normalizeStrand(value), undefined, String(value));
   }
+});
+
+test("normalizeStrand drops zero-width characters, also inside a label", () => {
+  assert.equal(normalizeStrand("\u200b heat \ufeff"), "heat");
+  assert.equal(normalizeStrand("he\u200bat"), "heat");
 });
 
 test("normalizeStrand cuts a long label to 60 characters and trims the end of the cut", () => {

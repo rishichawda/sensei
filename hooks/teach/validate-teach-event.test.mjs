@@ -54,6 +54,7 @@ const INVALID = [
   ["probe with non-string topic", { ...probe, topic: 4 }, ABC, [/^probe tag: topic must be a non-empty string/]],
   ["probe with an empty strand", { ...probe, strand: "" }, ABC, [/^probe tag: strand must be a non-empty string/]],
   ["probe with a whitespace-only strand", { ...probe, strand: "  \t" }, ABC, [/^probe tag: strand must be a non-empty string/]],
+  ["probe with a zero-width-only strand", { ...probe, strand: "\u200b\ufeff" }, ABC, [/^probe tag: strand must be a non-empty string/]],
   ["probe with a number as strand", { ...probe, strand: 3 }, ABC, [/^probe tag: strand must be a non-empty string/]],
   ["probe with an array as strand", { ...probe, strand: ["heat"] }, ABC, [/^probe tag: strand must be a non-empty string/]],
   ["probe with a null strand", { ...probe, strand: null }, ABC, [/^probe tag: strand must be a non-empty string/]],
