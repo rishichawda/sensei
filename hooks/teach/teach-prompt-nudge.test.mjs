@@ -31,6 +31,13 @@ test("checkPrompt matches 'resume teaching'", () => {
   assert.match(checkPrompt("can we resume teaching the rust session"), /Skill\(sensei:teach\)/);
 });
 
+test("checkPrompt returns null for a subagent hand-back that quotes a trigger phrase", () => {
+  const quoted = "The nudge matched the phrase teach me in that prompt.";
+  assert.match(checkPrompt(quoted), /Skill\(sensei:teach\)/);
+  const handBack = `<agent-message from="a1dbdc9b815acd11c">\n[Subagent hand-back] The text below is the final report.\n  ${quoted}\n</agent-message>`;
+  assert.equal(checkPrompt(handBack), null);
+});
+
 test("main() prints nothing for a non-matching prompt", () => {
   const out = execFileSync(process.execPath, [SCRIPT], { input: JSON.stringify({ prompt: "fix this bug" }) });
   assert.equal(out.toString(), "");

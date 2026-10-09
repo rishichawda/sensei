@@ -8,8 +8,15 @@ import { isActive } from "./session-state.mjs";
 
 const TRIGGER_PATTERNS = [/\bteach me\b/i, /\bcontinue teaching\b/i, /\bresume teaching\b/i];
 
+// A subagent hand-back reaches UserPromptSubmit like a typed prompt, with the
+// same payload keys; only the harness's envelope on `prompt` tells them apart
+// (captured live 2026-10-09). It is model output, so a trigger phrase quoted in
+// it is not the user asking to learn.
+const HAND_BACK_ENVELOPE = "<agent-message ";
+
 export function checkPrompt(prompt) {
   if (typeof prompt !== "string" || !prompt) return null;
+  if (prompt.startsWith(HAND_BACK_ENVELOPE)) return null;
   if (!TRIGGER_PATTERNS.some((re) => re.test(prompt))) return null;
   return "This prompt matches a teach-skill trigger phrase. Invoke Skill(sensei:teach) for this request, even if it looks like a plain conversational ask (e.g. continuing/resuming) and even in a fresh session with no visible prior context — the skill itself checks the mastery ledger for prior sessions on this topic.";
 }
