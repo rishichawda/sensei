@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 
 const LEDGER_VERSION = 1;
 const PROBE_LOG_MAX = 20;
+const STRAND_NAME_MAX = 60;
 
 export function slugify(text) {
   const cleaned = String(text)
@@ -159,6 +160,33 @@ export function addProbe(topicLedger, entry, now = new Date()) {
   const probes = Array.isArray(base.session.probes) ? base.session.probes : [];
   const session = { ...base.session, probes: [...probes, { ...entry, at: now.toISOString() }].slice(-PROBE_LOG_MAX), updatedAt: now.toISOString() };
   return { ...base, session };
+}
+
+export function normalizeStrand(value) {
+  if (typeof value !== "string") return undefined;
+  const name = value.trim().toLowerCase().replace(/\s+/g, " ").slice(0, STRAND_NAME_MAX).trimEnd();
+  return name === "" ? undefined : name;
+}
+
+// Which strands the probe log has already bracketed (a passed and a failed probe) is a fact
+// about the log, so code reads it; the model only reads the result. A Map keeps names such as
+// "__proto__" ordinary.
+export function summarizeStrands(probes) {
+  const byName = new Map();
+  let unassigned = 0;
+  for (const probe of Array.isArray(probes) ? probes : []) {
+    const name = normalizeStrand(probe?.strand);
+    if (name === undefined) {
+      unassigned += 1;
+      continue;
+    }
+    if (!byName.has(name)) byName.set(name, { name, passed: 0, failed: 0 });
+    const counts = byName.get(name);
+    if (probe.result === "passed") counts.passed += 1;
+    else if (probe.result === "failed") counts.failed += 1;
+  }
+  const strands = [...byName.values()].map((counts) => ({ ...counts, bracketed: counts.passed >= 1 && counts.failed >= 1 }));
+  return { strands, unassigned };
 }
 
 function main() {

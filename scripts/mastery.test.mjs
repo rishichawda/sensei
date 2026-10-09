@@ -21,6 +21,8 @@ import {
   advanceSession,
   deriveSession,
   addProbe,
+  normalizeStrand,
+  summarizeStrands,
 } from "./mastery.mjs";
 
 const SCRIPT = new URL("./mastery.mjs", import.meta.url).pathname;
@@ -770,4 +772,74 @@ test("CLI get-session does not throw on an intake row whose probes value is malf
   tl = { ...tl, session: { ...tl.session, probes: "not an array" } };
   withConfigDir(configDir, () => writeTopicLedger("javascript", tl));
   assert.equal(cliGetSession(configDir).status, "intake");
+});
+
+test("normalizeStrand trims, lowercases and collapses inner whitespace", () => {
+  assert.equal(normalizeStrand("  Heat   Time "), "heat time");
+  assert.equal(normalizeStrand("peeling"), "peeling");
+});
+
+test("normalizeStrand returns undefined for anything that is not a non-blank string", () => {
+  for (const value of [undefined, null, 4, ["heat"], {}, "", "   ", "\t\n"]) {
+    assert.equal(normalizeStrand(value), undefined, String(value));
+  }
+});
+
+test("normalizeStrand cuts a long label to 60 characters and trims the end of the cut", () => {
+  assert.equal(normalizeStrand("a".repeat(100)).length, 60);
+  assert.equal(normalizeStrand("a".repeat(59) + " b"), "a".repeat(59));
+});
+
+test("summarizeStrands counts passed and failed per strand and flags a strand only when it has both", () => {
+  const probes = [
+    { result: "passed", strand: "heat" },
+    { result: "failed", strand: "heat" },
+    { result: "passed", strand: "peeling" },
+    { result: "passed", strand: "peeling" },
+  ];
+  assert.deepEqual(summarizeStrands(probes), {
+    strands: [
+      { name: "heat", passed: 1, failed: 1, bracketed: true },
+      { name: "peeling", passed: 2, failed: 0, bracketed: false },
+    ],
+    unassigned: 0,
+  });
+});
+
+test("summarizeStrands groups names that differ only by case and spacing, in first-appearance order", () => {
+  const probes = [
+    { result: "failed", strand: "Heat" },
+    { result: "passed", strand: " heat " },
+    { result: "passed", strand: "peeling" },
+  ];
+  assert.deepEqual(summarizeStrands(probes).strands, [
+    { name: "heat", passed: 1, failed: 1, bracketed: true },
+    { name: "peeling", passed: 1, failed: 0, bracketed: false },
+  ]);
+});
+
+test("summarizeStrands counts a probe with no usable strand as unassigned and lists no strand for it", () => {
+  const probes = [{ result: "passed" }, { result: "failed", strand: "" }, { result: "failed", strand: "   " }, { result: "passed", strand: 7 }, null, "junk"];
+  assert.deepEqual(summarizeStrands(probes), { strands: [], unassigned: 6 });
+});
+
+test("summarizeStrands lists a strand whose probe has no result and counts it as neither passed nor failed", () => {
+  assert.deepEqual(summarizeStrands([{ strand: "heat" }]), {
+    strands: [{ name: "heat", passed: 0, failed: 0, bracketed: false }],
+    unassigned: 0,
+  });
+});
+
+test("summarizeStrands treats names that exist on Object.prototype as ordinary strand names", () => {
+  const probes = [{ result: "passed", strand: "__proto__" }, { result: "failed", strand: "constructor" }];
+  assert.deepEqual(summarizeStrands(probes).strands, [
+    { name: "__proto__", passed: 1, failed: 0, bracketed: false },
+    { name: "constructor", passed: 0, failed: 1, bracketed: false },
+  ]);
+});
+
+test("summarizeStrands returns an empty summary for missing or malformed probes", () => {
+  for (const probes of [undefined, null, "x", 42, {}]) {
+    assert.deepEqual(summarizeStrands(probes), { strands: [], unassigned: 0 }, String(probes));
+  }
 });
