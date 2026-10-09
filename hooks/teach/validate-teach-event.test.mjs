@@ -57,7 +57,7 @@ const INVALID = [
   ["probe with a zero-width-only strand", { ...probe, strand: "\u200b\ufeff" }, ABC, [/^probe tag: strand must be a non-empty string/]],
   ["probe with a number as strand", { ...probe, strand: 3 }, ABC, [/^probe tag: strand must be a non-empty string/]],
   ["probe with an array as strand", { ...probe, strand: ["heat"] }, ABC, [/^probe tag: strand must be a non-empty string/]],
-  ["probe with a null strand", { ...probe, strand: null }, ABC, [/^probe tag: strand must be a non-empty string/]],
+  ["probe with a null strand", { ...probe, strand: null }, ABC, [/^probe tag: strand must be a non-empty string; name the prerequisite thread this question tests$/]],
   ["goal without goal", { ...goal, goal: undefined }, ABC, [/^goal tag: goal must be a non-empty string/]],
   ["goal without topic", { ...goal, topic: undefined }, ABC, [/^goal tag: topic must be a non-empty string/]],
 
