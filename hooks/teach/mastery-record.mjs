@@ -107,6 +107,26 @@ export function expandEvents(event, questions) {
   return items.map((item, i) => ({ event: { ...shared, ...item }, question: questions[i] })).filter((pair) => pair.question && pair.event);
 }
 
+// Hidden from the learner, read by the model. The model tends to keep an explanation or a
+// verdict in its reasoning, which the learner sees only as a one-line summary; this asks for
+// chat text instead.
+const EXPLAIN_REMINDER =
+  "If your next step teaches new material, write that explanation as normal chat text (text in your reasoning is not shown to the learner) and end your turn with one plain line inviting them on. Never mention this reminder.";
+
+function nodeReminder(pairs, answers) {
+  const missed = [];
+  for (const { event, question } of pairs) {
+    if (event.kind !== "node" || event.recordAs !== "graded") continue;
+    const labels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];
+    if (gradeAnswer(event, answers?.[question.question], labels) === "failed") missed.push(`"${truncate(question.question, 80)}"`);
+  }
+  const verdicts =
+    missed.length > 0
+      ? `The learner missed, or answered "I don't know" to: ${missed.join("; ")}. For each, first write the verdict in chat text (say ✗ Incorrect, or plainly that it is a gap with no ✗), name the correct answer and explain it, then re-explain that point. Write all of that as chat text and end your turn there with one plain line inviting the learner on: do not call any tool in this turn, and check the point again only after they reply. For the other answers write a short verdict (✓ Correct and why).`
+      : "Write a short verdict in chat text for each answer (✓ Correct and why), then go on.";
+  return `${verdicts} ${EXPLAIN_REMINDER}`;
+}
+
 async function main() {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;
@@ -134,6 +154,10 @@ async function main() {
   if (!event) return;
   const answers = payload.tool_response?.answers;
   const pairs = expandEvents(event, questions);
+  const reminder = event.kind === "node" ? nodeReminder(pairs, answers) : event.kind === "plan" ? EXPLAIN_REMINDER : null;
+  if (reminder) {
+    process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: reminder } }));
+  }
   if (!question) return;
   const answerText = answers?.[question.question];
   const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];

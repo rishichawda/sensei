@@ -522,6 +522,37 @@ function runRecord(env, payload) {
   return execFileSync(process.execPath, [SCRIPT], { input: JSON.stringify(payload), env, encoding: "utf8" });
 }
 
+function answeredPayload(kind, extra = {}) {
+  const tag = { app: "sensei-teach", v: 1, kind, topic: "dns", ...extra };
+  return {
+    hook_event_name: "PostToolUse",
+    tool_name: "AskUserQuestion",
+    tool_input: { questions: [{ question: "Q?", options: [{ label: "A" }, { label: "B" }] }], metadata: { source: JSON.stringify(tag) } },
+    tool_response: { answers: { "Q?": "A" } },
+  };
+}
+
+test("main() adds a hidden reminder to explain as chat text after a plan or node answer", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  for (const [kind, extra] of [["plan", { approve: "A", plan: { nodes: ["a"], edges: [] } }], ["node", { node: "a", recordAs: "graded", correct: "A" }]]) {
+    const out = JSON.parse(runRecord(env, answeredPayload(kind, extra)));
+    assert.equal(out.hookSpecificOutput.hookEventName, "PostToolUse");
+    assert.match(out.hookSpecificOutput.additionalContext, /chat text/);
+    assert.match(out.hookSpecificOutput.additionalContext, /never mention this reminder/i);
+  }
+});
+
+test("main() prints no reminder for other kinds or an untagged call", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  assert.equal(runRecord(env, answeredPayload("other")), "");
+  assert.equal(runRecord(env, answeredPayload("probe", { correct: "A" })), "");
+  assert.equal(runRecord(env, answeredPayload("wrap", { done: "A" })), "");
+  const untagged = answeredPayload("other");
+  untagged.tool_input.metadata = {};
+  assert.equal(runRecord(env, untagged), "");
+});
+
+// A call with several questions: one event per question, graded against that question's own answer.
 function batchPayload(kind, items, answers, extra = {}) {
   const questions = items.map((_, i) => ({ question: `Q${i + 1}?`, options: [{ label: "A" }, { label: "B" }, { label: "I don't know" }] }));
   return {
@@ -558,3 +589,26 @@ test("main() still records the other items when one item has a correct label tha
   assert.equal(nodes.n2.status, "passed");
 });
 
+test("main() reminder names the missed question and asks for a verdict and a re-explanation", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  const out = JSON.parse(runRecord(env, batchPayload("node", [nodeItem("n1", "A"), nodeItem("n2", "B")], ["A", "I don't know"])));
+  const text = out.hookSpecificOutput.additionalContext;
+  assert.match(text, /Q2\?/);
+  assert.doesNotMatch(text, /Q1\?/);
+  assert.match(text, /verdict/);
+  assert.match(text, /re-explain/);
+  assert.match(text, /do not call any tool in this turn/);
+  assert.match(text, /never mention this reminder/i);
+});
+
+test("main() reminder asks only for short verdicts when every answer was right", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  const text = JSON.parse(runRecord(env, batchPayload("node", [nodeItem("n1", "A")], ["A"]))).hookSpecificOutput.additionalContext;
+  assert.match(text, /short verdict/);
+  assert.doesNotMatch(text, /re-explain/);
+});
+
+test("main() gives a probe call no reminder", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  assert.equal(runRecord(env, batchPayload("probe", [{ correct: "A" }], ["A"])), "");
+});
