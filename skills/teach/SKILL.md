@@ -64,6 +64,12 @@ Choose per topic and per their apparent energy:
 
 When unsure, lean Socratic for things they can clearly reason about; otherwise narrate.
 
+## Talking to the learner
+
+Everything the learner reads is about the subject and about their own progress, in words a person who has never seen these instructions would understand. Nothing that names how this works behind the scenes appears: not the stages and steps of this process, the names of its parts, helpers or agents, what is stored or checked, or any word you know only because you read this skill. Apply this test to every line you write, including headings, question and option text, and the short lines between tool calls: *would this make sense to someone who has never seen the instructions?* If a line names a mechanism and not the subject or the learner's progress, say what is happening for them in plain words ("Let me check a few facts before I plan this", "You know X; you haven't met Y yet", "I'll remember what you've covered") or write nothing. Do not announce that an internal step has finished (a label like "<thing> mapped" or "<thing> done" names a mechanism too); say what you found or what comes next. This holds for terms added to this skill later. The one exception is the dependency map, where the learner refers back to each idea by its ID (see Phase 2). Name a section after its idea ("Numbering the bytes"), not its position in the process.
+
+If they ask how this works ("what do you mean by check?"), answer in one or two plain sentences about what they will see: "I ask a short question to see whether it landed. If it didn't, I explain it again." Do not describe grading, files, hooks or the ledger unless they ask for exactly that. Never mention a hook, a refused call or a tool error to the learner, and never read plugin code or the transcript to work out why a call was refused.
+
 ## The process: goal and level → plan → teach
 
 The two principles are *how* you teach. This is *when* — the shape of a teaching session. Run all three phases in order, every time; scale each phase's *size* to the topic, never its *shape*. The one exception is resuming: a session the ledger already holds as `planned` or `in-progress` skips Phases 1 and 2 after recapping and confirming the stored goal, and continues Phase 3 (`mastery-ledger-protocol.md` Section A, step 0). Phase 4 closes the session.
