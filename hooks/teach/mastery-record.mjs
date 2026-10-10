@@ -99,6 +99,14 @@ function appendDebugLine(entry) {
   writeFileSync(path, trimmed.join("\n") + "\n", "utf8");
 }
 
+// A tag with `items` covers several questions, matched to them by position; without
+// `items` it covers the first question alone.
+export function expandEvents(event, questions) {
+  if (!Array.isArray(event.items)) return questions[0] ? [{ event, question: questions[0] }] : [];
+  const { items, ...shared } = event;
+  return items.map((item, i) => ({ event: { ...shared, ...item }, question: questions[i] })).filter((pair) => pair.question && pair.event);
+}
+
 async function main() {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;
@@ -124,8 +132,10 @@ async function main() {
     sourceRaw: truncate(sourceRaw),
   });
   if (!event) return;
+  const answers = payload.tool_response?.answers;
+  const pairs = expandEvents(event, questions);
   if (!question) return;
-  const answerText = payload.tool_response?.answers?.[question.question];
+  const answerText = answers?.[question.question];
   const optionLabels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];
 
   // A confirmed end of the lesson writes no ledger: the session keeps whatever
@@ -147,11 +157,16 @@ async function main() {
 
   const topicSlug = slugify(event.topic);
   const topicLedger = readTopicLedger(topicSlug);
-  const { ledger: updated, diagnostic } = applyTeachEvent(topicLedger, event, answerText, optionLabels, new Date(), question.question);
-  if (diagnostic) {
-    appendDebugLine({ timestamp: new Date().toISOString(), diagnostic, topic: event.topic, node: event.node, question: truncate(question.question) });
+  let ledger = topicLedger;
+  for (const { event: ev, question: q } of pairs) {
+    const labels = Array.isArray(q.options) ? q.options.map((o) => o?.label) : [];
+    const { ledger: updated, diagnostic } = applyTeachEvent(ledger, ev, answers?.[q.question], labels, new Date(), q.question);
+    if (diagnostic) {
+      appendDebugLine({ timestamp: new Date().toISOString(), diagnostic, topic: ev.topic, node: ev.node, question: truncate(q.question) });
+    }
+    ledger = updated;
   }
-  if (updated !== topicLedger) writeTopicLedger(topicSlug, updated);
+  if (ledger !== topicLedger) writeTopicLedger(topicSlug, ledger);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();

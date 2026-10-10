@@ -517,3 +517,44 @@ test("main() keeps a complete session complete and an in-progress session in-pro
     assert.equal(isActive(transcript), false);
   }
 });
+
+function runRecord(env, payload) {
+  return execFileSync(process.execPath, [SCRIPT], { input: JSON.stringify(payload), env, encoding: "utf8" });
+}
+
+function batchPayload(kind, items, answers, extra = {}) {
+  const questions = items.map((_, i) => ({ question: `Q${i + 1}?`, options: [{ label: "A" }, { label: "B" }, { label: "I don't know" }] }));
+  return {
+    hook_event_name: "PostToolUse",
+    tool_name: "AskUserQuestion",
+    tool_input: { questions, metadata: { source: JSON.stringify({ app: "sensei-teach", v: 1, kind, topic: "dns", items, ...extra }) } },
+    tool_response: { answers: Object.fromEntries(answers.map((a, i) => [`Q${i + 1}?`, a])) },
+  };
+}
+const nodeItem = (node, correct) => ({ node, recordAs: "graded", correct });
+const readLedger = (env, topic = "dns") => JSON.parse(readFileSyncNode(withEnv(env, () => topicLedgerPath(topic)), "utf8"));
+
+test("main() records every node of a multi-question call from its own answer", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  runRecord(env, batchPayload("node", [nodeItem("n1", "A"), nodeItem("n2", "B"), nodeItem("n3", "A")], ["A", "A", "I don't know"]));
+  const nodes = readLedger(env).nodes;
+  assert.equal(nodes.n1.status, "passed");
+  assert.equal(nodes.n2.status, "failed");
+  assert.equal(nodes.n3.status, "failed");
+});
+
+test("main() records every probe of a multi-question call, each with its own strand", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  runRecord(env, batchPayload("probe", [{ correct: "A", strand: "Heat" }, { correct: "B", strand: "peeling" }], ["A", "A"]));
+  const probes = readLedger(env).session.probes;
+  assert.deepEqual(probes.map((p) => [p.question, p.result, p.strand]), [["Q1?", "passed", "heat"], ["Q2?", "failed", "peeling"]]);
+});
+
+test("main() still records the other items when one item has a correct label that is not an option", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  runRecord(env, batchPayload("node", [nodeItem("n1", "ZZ"), nodeItem("n2", "A")], ["A", "A"]));
+  const nodes = readLedger(env).nodes;
+  assert.equal(nodes.n1, undefined);
+  assert.equal(nodes.n2.status, "passed");
+});
+
