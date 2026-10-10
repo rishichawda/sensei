@@ -33,7 +33,9 @@ async function main() {
   } catch {
     return;
   }
-  if (payload?.hook_event_name !== "PostToolUse" || payload?.tool_name !== "Bash") return;
+  // A command that exits non-zero fires PostToolUseFailure, not PostToolUse.
+  const event = payload?.hook_event_name;
+  if ((event !== "PostToolUse" && event !== "PostToolUseFailure") || payload?.tool_name !== "Bash") return;
   const command = payload.tool_input?.command;
   if (typeof command !== "string" || !isMasteryInvocation(command)) return;
   if (!payload.transcript_path) return;

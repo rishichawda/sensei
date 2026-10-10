@@ -33,6 +33,20 @@ test("main() marks active for a Bash command that runs scripts/mastery.mjs once 
   assert.equal(existsSync(markerPathFor(transcript)), true);
 });
 
+test("main() marks active when the mastery.mjs command failed (PostToolUseFailure)", () => {
+  const transcript = freshTranscriptPath();
+  markTeachInvoked(transcript);
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUseFailure",
+      tool_name: "Bash",
+      tool_input: { command: 'node "/plugin/scripts/mastery.mjs" --help' },
+      transcript_path: transcript,
+    }),
+  });
+  assert.equal(existsSync(markerPathFor(transcript)), true);
+});
+
 test("main() ignores a Bash command unrelated to mastery.mjs", () => {
   const transcript = freshTranscriptPath();
   execFileSync(process.execPath, [SCRIPT], {
