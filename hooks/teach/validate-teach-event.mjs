@@ -5,6 +5,9 @@ const ONE_QUESTION_KINDS = ["probe", "goal", "node", "plan", "wrap"];
 
 const isText = (value) => typeof value === "string" && value.length > 0;
 
+const MAX_ITEMS = 4;
+const ITEM_KINDS = ["probe", "node"];
+
 export function validateTeachEvent(event, questions) {
   const problems = [];
   const kind = event?.kind;
@@ -16,29 +19,29 @@ export function validateTeachEvent(event, questions) {
   }
 
   const at = `${kind} tag`;
+  const qs = Array.isArray(questions) ? questions : [];
   const requireText = (field) => {
     if (!isText(event[field])) problems.push(`${at}: ${field} must be a non-empty string`);
   };
-  const qs = Array.isArray(questions) ? questions : [];
-  const labels = Array.isArray(qs[0]?.options) ? qs[0].options.map((o) => o?.label) : [];
-  const ROLE = { correct: "correct", approve: "approval", done: "I'm done" };
-  const requireLabel = (field) => {
-    if (qs.length > 0 && !(isText(event[field]) && labels.includes(event[field]))) {
-      problems.push(`${at}: ${field} ${JSON.stringify(event[field])} matches none of the option labels ${JSON.stringify(labels)}; set it to the exact label of the ${ROLE[field]} option`);
-    }
-  };
+
+  if (event.items !== undefined && !ITEM_KINDS.includes(kind)) {
+    problems.push(`${at}: items is only for probe and node tags; send one question per call`);
+  }
+
+  if (ITEM_KINDS.includes(kind) && event.items !== undefined) {
+    requireText("topic");
+    validateItems(event, qs, at, problems);
+    return problems;
+  }
 
   if (ONE_QUESTION_KINDS.includes(kind)) {
-    if (qs.length !== 1) problems.push(`${at}: call has ${qs.length} questions; send exactly one question per call`);
+    if (qs.length !== 1) problems.push(`${at}: call has ${qs.length} questions; send exactly one question per call${ITEM_KINDS.includes(kind) ? ", or put several questions in the call with an items array" : ""}`);
     else if (qs[0]?.multiSelect === true) problems.push(`${at}: question is multi-select; use a single-select question`);
   }
 
-  if (kind === "probe") {
+  if (kind === "probe" || kind === "node") {
     requireText("topic");
-    requireLabel("correct");
-    if (event.strand !== undefined && normalizeStrand(event.strand) === undefined) {
-      problems.push(`${at}: strand must be a non-empty string; name the prerequisite thread this question tests`);
-    }
+    validateQuestionFields(kind, event, qs[0], qs.length > 0, at, problems);
   }
 
   if (kind === "goal") {
@@ -46,25 +49,63 @@ export function validateTeachEvent(event, questions) {
     requireText("goal");
   }
 
-  if (kind === "node") {
-    requireText("topic");
-    requireText("node");
-    if (event.recordAs !== "graded") problems.push(`${at}: recordAs must be "graded"`);
-    requireLabel("correct");
-  }
-
   if (kind === "plan") {
     requireText("topic");
-    requireLabel("approve");
+    requireLabelFor(event, "approve", qs[0], qs.length > 0, at, problems);
     validatePlan(event.plan, at, problems);
   }
 
   if (kind === "wrap") {
     requireText("topic");
-    requireLabel("done");
+    requireLabelFor(event, "done", qs[0], qs.length > 0, at, problems);
   }
 
   return problems;
+}
+
+const ROLE = { correct: "correct", approve: "approval", done: "I'm done" };
+
+function requireLabelFor(ev, field, question, hasQuestions, at, problems) {
+  if (!hasQuestions) return;
+  const labels = Array.isArray(question?.options) ? question.options.map((o) => o?.label) : [];
+  if (!(isText(ev[field]) && labels.includes(ev[field]))) {
+    problems.push(`${at}: ${field} ${JSON.stringify(ev[field])} matches none of the option labels ${JSON.stringify(labels)}; set it to the exact label of the ${ROLE[field]} option`);
+  }
+}
+
+// The per-question fields of a probe or node tag, for one question.
+function validateQuestionFields(kind, ev, question, hasQuestions, at, problems) {
+  if (kind === "node") {
+    if (!isText(ev.node)) problems.push(`${at}: node must be a non-empty string`);
+    if (ev.recordAs !== "graded") problems.push(`${at}: recordAs must be "graded"`);
+  }
+  requireLabelFor(ev, "correct", question, hasQuestions, at, problems);
+  if (kind === "probe" && ev.strand !== undefined && normalizeStrand(ev.strand) === undefined) {
+    problems.push(`${at}: strand must be a non-empty string; name the prerequisite thread this question tests`);
+  }
+}
+
+function validateItems(event, qs, at, problems) {
+  const { items, kind } = event;
+  if (!Array.isArray(items) || items.length === 0) {
+    problems.push(`${at}: items must be a non-empty array with one object per question`);
+    return;
+  }
+  if (items.length > MAX_ITEMS || qs.length > MAX_ITEMS) problems.push(`${at}: a call carries at most ${MAX_ITEMS} questions`);
+  if (items.length !== qs.length) {
+    problems.push(`${at}: items has ${items.length} items but the call has ${qs.length} questions; send one item per question, in the same order`);
+  }
+  qs.forEach((question, i) => {
+    if (question?.multiSelect === true) problems.push(`${at}: question ${i + 1} is multi-select; use single-select questions`);
+  });
+  items.forEach((item, i) => {
+    const where = `${at} items[${i}]`;
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      problems.push(`${where}: must be an object`);
+      return;
+    }
+    validateQuestionFields(kind, item, qs[i], qs.length > 0, where, problems);
+  });
 }
 
 function validatePlan(plan, at, problems) {

@@ -10,6 +10,7 @@ import { markActive } from "./session-state.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./enforce-teach-tag.mjs", import.meta.url));
 
+
 function freshTranscriptPath() {
   const dir = mkdtempSync(join(tmpdir(), "enforce-teach-tag-test-"));
   return join(dir, "session.jsonl");
@@ -151,7 +152,7 @@ test("checkDeny joins several problems in one reason", () => {
   const questions = [...questionWithOptions(["A", "B"]).questions, ...questionWithOptions(["A", "B"]).questions];
   const decision = checkDeny(taggedCall({ ...NODE_TAG, correct: "Z" }, questions, transcript));
   const reason = decision.hookSpecificOutput.permissionDecisionReason;
-  assert.match(reason, /call has 2 questions; send exactly one question per call; node tag: correct "Z" matches none/);
+  assert.match(reason, /call has 2 questions; send exactly one question per call, or put several questions in the call with an items array; node tag: correct "Z" matches none/);
 });
 
 test("checkDeny denies a tagged call with no questions and does not throw", () => {
@@ -237,4 +238,11 @@ test("the missing-tag reason uses the new phase names and shows the probe tag wi
   assert.match(reason, /kind:"probe", topic:"<topic>", correct:"<exact correct label>", strand:"<short thread label>"\} for a Phase 1b probe/);
   assert.match(reason, /Phase 1a's interim narrowing calls/);
   assert.doesNotMatch(reason, /Phase 1b's interim/);
+});
+
+test("the missing-tag reason says one call may carry several questions through items", () => {
+  const transcript = freshTranscriptPath();
+  markActive(transcript);
+  const decision = checkDeny({ hook_event_name: "PreToolUse", tool_name: "AskUserQuestion", tool_input: questionWithOptions(["A", "B"]), transcript_path: transcript });
+  assert.match(decision.hookSpecificOutput.permissionDecisionReason, /items/);
 });

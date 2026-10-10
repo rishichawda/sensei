@@ -92,11 +92,11 @@ const INVALID = [
   ["plan.nodes holds a non-string and an edge uses only valid nodes", { ...plan, plan: { nodes: ["a", "b", 2], edges: [["a", "b"]] } }, APPROVE, [/plan\.nodes must be a non-empty array/]],
   ["plan.nodes not an array leaves the edges unchecked", { ...plan, plan: { nodes: "a", edges: [["a", "zzz"]] } }, APPROVE, [/plan\.nodes must be a non-empty array/]],
 
-  ["probe with 2 questions", probe, multi, [/^probe tag: call has 2 questions; send exactly one question per call$/]],
+  ["probe with 2 questions", probe, multi, [/^probe tag: call has 2 questions; send exactly one question per call, or put several questions in the call with an items array$/]],
   ["goal with 2 questions", goal, multi, [/^goal tag: call has 2 questions; send exactly one question per call$/]],
-  ["node with 2 questions", node, multi, [/^node tag: call has 2 questions; send exactly one question per call$/]],
+  ["node with 2 questions", node, multi, [/^node tag: call has 2 questions; send exactly one question per call, or put several questions in the call with an items array$/]],
   ["plan with 2 questions", plan, [...APPROVE, ...APPROVE], [/^plan tag: call has 2 questions; send exactly one question per call$/]],
-  ["probe with zero questions", probe, [], [/^probe tag: call has 0 questions; send exactly one question per call$/]],
+  ["probe with zero questions", probe, [], [/^probe tag: call has 0 questions; send exactly one question per call, or put several questions in the call with an items array$/]],
   ["probe with questions not an array", probe, undefined, [/^probe tag: call has 0 questions/]],
   ["node with zero questions (label check skipped)", node, [], [/^node tag: call has 0 questions/]],
   ["probe multi-select", probe, multiSelect(["A", "B"]), [/^probe tag: question is multi-select; use a single-select question$/]],
@@ -133,5 +133,66 @@ test("never throws on odd input", () => {
     for (const questions of [undefined, null, "x", 3, [null], [{}], [{ options: "x" }], [{ options: [null, {}] }]]) {
       assert.ok(Array.isArray(validateTeachEvent(event, questions)));
     }
+  }
+});
+
+// A call with several questions: items align with questions by index.
+const q = (question, ...labels) => ({ question, options: labels.map((label) => ({ label })) });
+const TWO = [q("Q1?", "A", "B", "I don't know"), q("Q2?", "X", "Y", "I don't know")];
+const nodeItems = { ...TAG, kind: "node", topic: "dns", items: [{ node: "n1", recordAs: "graded", correct: "B" }, { node: "n2", recordAs: "graded", correct: "X" }] };
+const probeItems = { ...TAG, kind: "probe", topic: "dns", items: [{ correct: "B", strand: "heat" }, { correct: "Y" }] };
+
+test("items: a node call with one item per question is valid", () => {
+  assert.deepEqual(validateTeachEvent(nodeItems, TWO), []);
+});
+
+test("items: a probe call with one item per question is valid", () => {
+  assert.deepEqual(validateTeachEvent(probeItems, TWO), []);
+});
+
+test("items: four questions are valid, five are denied", () => {
+  const four = [1, 2, 3, 4].map((i) => q(`Q${i}?`, "A", "B"));
+  const items = four.map((_, i) => ({ node: `n${i}`, recordAs: "graded", correct: "A" }));
+  assert.deepEqual(validateTeachEvent({ ...nodeItems, items }, four), []);
+  const five = [...four, q("Q5?", "A", "B")];
+  const problems = validateTeachEvent({ ...nodeItems, items: [...items, { node: "n5", recordAs: "graded", correct: "A" }] }, five);
+  assert.match(problems.join("; "), /at most 4/);
+});
+
+test("items: a count mismatch between items and questions is denied", () => {
+  const problems = validateTeachEvent({ ...nodeItems, items: nodeItems.items.slice(0, 1) }, TWO);
+  assert.match(problems.join("; "), /1 items but the call has 2 questions/);
+});
+
+test("items: a correct label missing from its own question is denied with the item index", () => {
+  const bad = { ...nodeItems, items: [nodeItems.items[0], { node: "n2", recordAs: "graded", correct: "B" }] };
+  assert.match(validateTeachEvent(bad, TWO).join("; "), /items\[1\].*"B"/);
+});
+
+test("items: a bad item is denied (node missing, recordAs wrong)", () => {
+  const bad = { ...nodeItems, items: [{ recordAs: "seen", correct: "B" }, nodeItems.items[1]] };
+  const text = validateTeachEvent(bad, TWO).join("; ");
+  assert.match(text, /items\[0\].*node must be a non-empty string/);
+  assert.match(text, /items\[0\].*recordAs must be "graded"/);
+});
+
+test("items: a multi-select question is denied", () => {
+  const ms = [{ ...TWO[0], multiSelect: true }, TWO[1]];
+  assert.match(validateTeachEvent(nodeItems, ms).join("; "), /multi-select/);
+});
+
+test("items: an empty or non-array items is denied", () => {
+  assert.match(validateTeachEvent({ ...nodeItems, items: [] }, TWO).join("; "), /items/);
+  assert.match(validateTeachEvent({ ...nodeItems, items: "x" }, TWO).join("; "), /items/);
+});
+
+test("items: a probe item with a blank strand is denied", () => {
+  const bad = { ...probeItems, items: [{ correct: "B", strand: "  " }, probeItems.items[1]] };
+  assert.match(validateTeachEvent(bad, TWO).join("; "), /items\[0\].*strand/);
+});
+
+test("items are not allowed on goal, plan, wrap or other tags", () => {
+  for (const [event, qs] of [[goal, ABC], [plan, APPROVE], [wrap, WRAP_OPTS], [{ ...TAG, kind: "other" }, ABC]]) {
+    assert.match(validateTeachEvent({ ...event, items: [{}] }, qs).join("; "), /items is only for/);
   }
 });
