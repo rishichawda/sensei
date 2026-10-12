@@ -6,7 +6,6 @@
     {
       "name": "sensei",
       "description": "Learn anything in Claude Code with a plan you approve first and a check you pass at every step.",
-      "version": "0.1.0",
       "category": "learning",
       "source": "./",
       "author": { "name": "rishichawda", "email": "rishichawda@users.noreply.github.com" }
