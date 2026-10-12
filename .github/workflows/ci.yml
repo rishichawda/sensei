@@ -12,11 +12,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
+      - name: Install rsvg-convert for the SVG render tests
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
       - run: npm ci
       - run: npm test
       - name: Validate plugin and marketplace manifests
