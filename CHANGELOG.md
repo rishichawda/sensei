@@ -4,6 +4,8 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+- Marketplace listing: new description, a display name, and the `learning` category.
+
 ## [0.1.0]
 
 First version. Not yet released publicly.
