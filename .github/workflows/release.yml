@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install rsvg-convert for the SVG render tests
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+      - run: npm ci
+      - name: Bump the version and move the Unreleased changelog entries under it
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(node scripts/release.mjs "$BUMP" --notes-file "$RUNNER_TEMP/notes.md")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: npm test
+      - name: Validate plugin and marketplace manifests
+        run: npx --yes @anthropic-ai/claude-code plugin validate . --strict
+      - name: Commit the bump through the API so GitHub signs it
+        id: commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg oid "$GITHUB_SHA" \
+            --arg headline "Release $VERSION" \
+            --arg plugin "$(base64 -w0 .claude-plugin/plugin.json)" \
+            --arg changelog "$(base64 -w0 CHANGELOG.md)" \
+            '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
+              variables: { input: {
+                branch: { repositoryNameWithOwner: $repo, branchName: "main" },
+                message: { headline: $headline },
+                expectedHeadOid: $oid,
+                fileChanges: { additions: [
+                  { path: ".claude-plugin/plugin.json", contents: $plugin },
+                  { path: "CHANGELOG.md", contents: $changelog }
+                ] }
+              } }
+            }' > "$RUNNER_TEMP/commit.json"
+          oid=$(gh api graphql --input "$RUNNER_TEMP/commit.json" --jq .data.createCommitOnBranch.commit.oid)
+          echo "oid=$oid" >> "$GITHUB_OUTPUT"
+      - name: Create the GitHub release and tag at that commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          OID: ${{ steps.commit.outputs.oid }}
+        run: gh release create "v$VERSION" --target "$OID" --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+      - name: Report whether GitHub signed the release commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OID: ${{ steps.commit.outputs.oid }}
+        run: gh api "repos/$GITHUB_REPOSITORY/commits/$OID" --jq '.commit.verification | "verified=\(.verified) reason=\(.reason)"'
