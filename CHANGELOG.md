@@ -6,14 +6,37 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [0.1.1] - 2026-10-12
 
-- Marketplace listing: new description, a display name, and the `learning` category.
+Everything since the `v0.1.0` tag.
 
-## [0.1.0]
+### Added
 
-First version. Not yet released publicly.
+- Progress is saved per topic in a local ledger (`~/.claude/sensei/ledgers/<topic>.json`, managed by `scripts/mastery.mjs`). A returning learner resumes at the next unfinished step and skips what they already passed. The ledger is versioned, written atomically, and a file that cannot be read is backed up instead of lost.
+- `teach` hooks record each answer as passed or failed from the learner's own choice, so the record does not depend on the model reporting its own results.
+- Every `teach` question carries a `sensei-teach` tag, and a hook denies a question whose tag is missing or malformed and says what is wrong. One probe or check call can carry up to four questions.
+- A hook nudges the model to start `teach` when a learning request would otherwise skip it, including phrasing such as "continue teaching me X". It stays quiet while a lesson is active and on a subagent hand-back.
+- Trigger evals for the skills and agents under `evals/`.
+- A marketplace listing with a new description, a display name and the `learning` category.
 
-- `teach` skill: probes the learner's level, shows a dependency-map plan for approval, teaches step by step with a check after each chunk, and saves progress per topic in a local ledger.
-- `visualize` skill with the `mermaid-maker` and `svg-maker` agents.
-- `researcher` agent.
-- `md-log` and `md-unlog` commands to mirror a session to a markdown file.
-- Hooks that check `teach` question tags and record check results.
+### Changed
+
+- `teach` asks for the learner's goal before it probes, then finds the edge of what they know in rounds of questions, tracked per strand of the topic.
+- The plan and its dependency-map diagram end the turn, so the learner's go-ahead comes as a separate reply.
+- A lesson teaches a few related steps and checks them in one round of questions. After a miss, the turn ends so the learner can answer.
+- `teach` explains in plain language, keeps how it works out of what the learner reads, and says nothing while it looks up saved progress or before a tool call the learner would not notice.
+- The `teach` description now covers learning requests only. The `researcher` description says when to use it.
+- `/md-log` links only `.md` files, accepts a path with spaces, and finds the current session's transcript by its session id. Backfill follows the real conversation order and skips injected skill text.
+
+### Fixed
+
+- A Mermaid diagram with a math label no longer depends on a `katex` version with a prototype pollution alert (GHSA-238p-pmpm-9mq7); `katex` is pinned to 0.18.2 or newer, and `dompurify` is updated.
+- The diagram render and publish scripts resolve symlinks and refuse to write outside `$TMPDIR`.
+- The `researcher` agent no longer has the `Bash` tool and treats fetched pages and search results as data, not instructions.
+- A `/md-log` backfill no longer fails on a literal `null` line in the transcript.
+
+## [0.1.0] - 2026-09-07
+
+First tagged version.
+
+- `teach` skill: probes the learner's level, draws a dependency-map plan and waits for the learner's go-ahead, then teaches node by node with a quiz check after each.
+- `visualize` skill with the `mermaid-maker` and `svg-maker` agents, and the `researcher` agent.
+- `/md-log` and `/md-unlog` commands to mirror a session to a markdown file.
