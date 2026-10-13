@@ -69,12 +69,22 @@ test("digest with no vault prints a note and exits 0", () => {
 test("digest rejects a bad slug, kind, empty text or missing session", () => {
   const { env, vault } = setup();
   const ok = ["digest", "--topic", "dns", "--node", "referrals", "--kind", "explained"];
-  assert.equal(run(["digest", "--topic", "../x", "--node", "n", "--kind", "explained"], env, "t").status, 1);
+  assert.equal(run(["digest", "--node", "n", "--kind", "explained"], env, "t").status, 1, "missing topic");
   assert.equal(run(["digest", "--topic", "dns", "--node", "A b", "--kind", "explained"], env, "t").status, 1);
   assert.equal(run(["digest", "--topic", "dns", "--node", "n", "--kind", "wrong"], env, "t").status, 1);
   assert.equal(run(ok, env, "   \n").status, 1);
   assert.equal(run(ok, { ...env, CLAUDE_CODE_SESSION_ID: "" }, "t").status, 1);
   assert.equal(existsSync(join(vault, "sensei")), false);
+});
+
+test("digest slugifies the topic the way the hook and the ledger do", () => {
+  const { env, vault } = setup();
+  const result = run(["digest", "--topic", "DNS Resolution", "--node", "referrals", "--kind", "explained"], env, "x");
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(existsSync(join(vault, "sensei", "dns-resolution", "referrals.md")));
+  const escape = run(["digest", "--topic", "../etc", "--node", "n", "--kind", "explained"], env, "x");
+  assert.equal(escape.status, 0);
+  assert.ok(existsSync(join(vault, "sensei", "etc", "n.md")), "path characters become hyphens, nothing leaves the vault");
 });
 
 test("digest cuts a very long text", () => {

@@ -6,7 +6,7 @@ import { resolveVaultPath, isDeclined, setDeclined, saveVaultPath, isSessionId, 
 import { isSlug } from "../hooks/vault/paths.mjs";
 import { recordDigest } from "../hooks/vault/writer.mjs";
 import { prerequisitesOf } from "../hooks/vault/graph.mjs";
-import { readTopicLedger } from "./mastery.mjs";
+import { readTopicLedger, slugify } from "./mastery.mjs";
 
 const DIGEST_MAX_CHARS = 2000;
 const KINDS = ["explained", "re-explained"];
@@ -51,8 +51,9 @@ function readStdin() {
 }
 
 function digest(flags) {
-  const { topic, node, kind } = flags;
-  if (!isSlug(topic)) fail(`--topic must be a lowercase-hyphenated slug, got ${JSON.stringify(topic)}`);
+  const { node, kind } = flags;
+  if (!flags.topic) fail("--topic is required");
+  const topic = slugify(flags.topic); // the same slug the ledger and the record-check hook use
   if (!isSlug(node)) fail(`--node must be a lowercase-hyphenated slug, got ${JSON.stringify(node)}`);
   if (!KINDS.includes(kind)) fail(`--kind must be one of ${KINDS.join(", ")}`);
   const sessionId = flags.session || process.env.CLAUDE_CODE_SESSION_ID;
