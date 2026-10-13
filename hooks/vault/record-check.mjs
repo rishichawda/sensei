@@ -35,10 +35,11 @@ export function handlePayload(payload, env = process.env, now = new Date()) {
     return;
   }
 
-  if (event.kind !== "node" || event.recordAs !== "graded" || !isSessionId(sessionId)) return;
+  if (event.kind !== "node" || !isSessionId(sessionId)) return;
 
   const plan = readTopicLedger(topic).session?.dependencyMap ?? null;
   for (const { event: ev, question } of expandEvents(event, questions)) {
+    if (ev.recordAs !== "graded") continue; // recordAs sits on each item in a batched tag
     const picked = answers?.[question.question];
     if (typeof picked !== "string") continue;
     const labels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];

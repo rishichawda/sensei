@@ -97,6 +97,22 @@ test("a batched call writes one card per question", () => {
   assert.ok(readFileSync(join(vault, "sensei", "dns", "delegation.md"), "utf8").includes('Picked "Caches"'));
 });
 
+test("a batched call whose items carry recordAs (the real tag shape) writes a card per graded item and skips the others", () => {
+  const { vault, env } = setup();
+  seedLedger(env);
+  const Q2 = { question: "What does a delegation do?", options: ["Hands a zone to another server", "Caches", "I don't know"] };
+  const tag = {
+    kind: "node", topic: "dns",
+    items: [
+      { node: "referrals", recordAs: "graded", correct: "Ask the next server" },
+      { node: "delegation", recordAs: "seen", correct: "Hands a zone to another server" },
+    ],
+  };
+  run(payload({ tag, questions: [Q, Q2], answers: { [Q.question]: "Ask the next server", [Q2.question]: "Hands a zone to another server" } }), env);
+  assert.ok(readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8").includes("> ✓ Answered correctly."));
+  assert.equal(existsSync(join(vault, "sensei", "dns", "delegation.md")), false);
+});
+
 test("a node ID that is not a slug is skipped and logged, the other questions still write", () => {
   const { vault, env, config } = setup();
   seedLedger(env);
