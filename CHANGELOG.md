@@ -4,6 +4,15 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Added
+
+- Set `vault_path` and sensei saves each concept's explanation, quiz questions (as Obsidian Spaced Repetition flashcards), your answers and how mistakes were re-explained into your Obsidian vault, one append-only note per concept, with a map note per topic.
+- `scripts/vault.mjs` for the teach skill: save a digest, check the vault status, decline or set up a vault.
+
+### Removed
+
+- `/md-log`, `/md-unlog` and the whole-transcript mirror. The vault notes replace them.
+
 ## [0.1.1] - 2026-10-12
 
 Everything since the `v0.1.0` tag.

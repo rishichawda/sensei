@@ -1,4 +1,0 @@
-{"type":"message","message":{"role":"user","content":"What is TCP?"}}
-{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"TCP is a reliable transport protocol."}]}}
-{"type":"message","message":{"role":"user","content":"Why reliable?"}}
-{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"Because it retransmits lost packets."}]}}

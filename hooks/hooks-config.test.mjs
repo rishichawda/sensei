@@ -21,3 +21,20 @@ test("mark-invoked runs on every prompt and after every Skill call, the two ways
   assert.equal(registered("UserPromptSubmit", undefined), true);
   assert.equal(registered("PostToolUse", "Skill"), true);
 });
+
+test("no hook command references the removed md-log hooks", () => {
+  const commands = Object.values(hooksJson.hooks)
+    .flat()
+    .flatMap((entry) => entry.hooks.map((h) => h.command));
+  assert.deepEqual(commands.filter((c) => /md-log/.test(c)), []);
+});
+
+test("the vault hooks are registered: sync on SessionStart, record after every AskUserQuestion result", () => {
+  const registered = (event, matcher, script) =>
+    (hooksJson.hooks[event] ?? [])
+      .filter((entry) => entry.matcher === matcher)
+      .flatMap((entry) => entry.hooks.map((h) => h.command))
+      .some((c) => c.includes(script));
+  assert.equal(registered("SessionStart", undefined, "hooks/vault/session-start.mjs"), true);
+  assert.equal(registered("PostToolUse", "AskUserQuestion", "hooks/vault/record-check.mjs"), true);
+});

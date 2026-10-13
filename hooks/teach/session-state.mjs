@@ -1,7 +1,6 @@
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 
-// Per-session marker, sibling to this session's own transcript file — the
-// same scoping trick hooks/md-log/lib.mjs uses for its state file, so it's
+// Per-session marker, sibling to this session's own transcript file, so it's
 // inherently scoped to one session (never stale across sessions) and
 // harmless to leave behind (orphaned alongside an orphaned transcript).
 function markerPathFor(transcriptPath) {

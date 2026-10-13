@@ -1,6 +1,6 @@
 ---
 name: visualize
-description: "Add a correct, minimal visual to a lesson — a diagram or geometric picture — that renders inline in the chat (and in Obsidian via md-log, if linked). Use when an idea is genuinely clearer as a picture: a dependency graph, system/flow, sequence, state machine, tree, comparison, or a spatial/geometric thing (coordinate geometry, number line, vectors, a plot, a physical layout). Outsources authoring+rendering to a maker subagent that verifies the image by looking at it, then you embed the returned file."
+description: "Add a correct, minimal visual to a lesson — a diagram or geometric picture — that renders inline in the chat. Use when an idea is genuinely clearer as a picture: a dependency graph, system/flow, sequence, state machine, tree, comparison, or a spatial/geometric thing (coordinate geometry, number line, vectors, a plot, a physical layout). Outsources authoring+rendering to a maker subagent that verifies the image by looking at it, then you embed the returned file."
 ---
 
 # Visualize
@@ -63,7 +63,7 @@ Put the embed directly in your teaching reply as a standard markdown image, usin
 ![diagram](viz/viz-<slug>-<digits>.png)
 ```
 
-If `/sensei:md-log` was linked earlier in this conversation, prefer the Obsidian wikilink embed convention instead (`![[viz-<slug>-<digits>.png|500]]`) so it renders inline there too (the working directory must be inside the vault for that link to resolve) — that's the actual available signal (there's no other way to check whether md-log is linked), not a general "check which convention applies." Introduce the visual in a sentence, then let it carry the idea — don't narrate every element back in prose.
+Introduce the visual in a sentence, then let it carry the idea — don't narrate every element back in prose.
 
 ## Why this is reliable
 
