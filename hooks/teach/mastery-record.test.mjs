@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync as readFileSyncNode } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseTeachEvent, gradeAnswer, applyTeachEvent, truncate } from "./mastery-record.mjs";
+import { parseTeachEvent, gradeAnswer, applyTeachEvent, truncate, nodeReminder } from "./mastery-record.mjs";
 import { emptyTopicLedger, getSession, getTopic, touchSession, setSessionPlan, topicLedgerPath, ledgersDir, writeTopicLedger, recordNode, advanceSession } from "../../scripts/mastery.mjs";
 import { markActive, isActive } from "./session-state.mjs";
 
@@ -611,4 +611,22 @@ test("main() reminder asks only for short verdicts when every answer was right",
 test("main() gives a probe call no reminder", () => {
   const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
   assert.equal(runRecord(env, batchPayload("probe", [{ correct: "A" }], ["A"])), "");
+});
+
+test("nodeReminder asks for a re-explanation digest only when a vault is configured and a node was missed", () => {
+  const event = { kind: "node", topic: "dns", node: "referrals", recordAs: "graded", correct: "A" };
+  const question = { question: "Q?", options: [{ label: "A" }, { label: "B" }] };
+  const pairs = [{ event, question }];
+  const missed = { "Q?": "B" };
+  const context = { vaultConfigured: true, pluginRoot: "/p", topic: "dns" };
+
+  const plain = nodeReminder(pairs, missed);
+  assert.ok(!plain.includes("vault.mjs"));
+
+  const withVault = nodeReminder(pairs, missed, context);
+  assert.ok(withVault.includes('node "/p/scripts/vault.mjs" digest --topic dns --node referrals --kind re-explained'));
+  assert.ok(withVault.includes("next turn"));
+
+  const passed = nodeReminder(pairs, { "Q?": "A" }, context);
+  assert.ok(!passed.includes("vault.mjs"));
 });

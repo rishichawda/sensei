@@ -2,6 +2,7 @@ import { readTopicLedger, writeTopicLedger, recordNode, touchSession, setSession
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { clearActive } from "./session-state.mjs";
+import { resolveVaultPath } from "../vault/state.mjs";
 
 const DEBUG_LOG_MAX_LINES = 200;
 
@@ -113,18 +114,26 @@ export function expandEvents(event, questions) {
 const EXPLAIN_REMINDER =
   "If your next step teaches new material, write that explanation as normal chat text (text in your reasoning is not shown to the learner) and end your turn with one plain line inviting them on. Never mention this reminder.";
 
-function nodeReminder(pairs, answers) {
+export function nodeReminder(pairs, answers, context = { vaultConfigured: false, pluginRoot: null, topic: "" }) {
   const missed = [];
+  const missedNodes = [];
   for (const { event, question } of pairs) {
     if (event.kind !== "node" || event.recordAs !== "graded") continue;
     const labels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];
-    if (gradeAnswer(event, answers?.[question.question], labels) === "failed") missed.push(`"${truncate(question.question, 80)}"`);
+    if (gradeAnswer(event, answers?.[question.question], labels) === "failed") {
+      missed.push(`"${truncate(question.question, 80)}"`);
+      missedNodes.push(event.node);
+    }
   }
   const verdicts =
     missed.length > 0
       ? `The learner missed, or answered "I don't know" to: ${missed.join("; ")}. For each, first write the verdict in chat text (say ✗ Incorrect, or plainly that it is a gap with no ✗), name the correct answer and explain it, then re-explain that point. Write all of that as chat text and end your turn there with one plain line inviting the learner on: do not call any tool in this turn, and check the point again only after they reply. For the other answers write a short verdict (✓ Correct and why).`
       : "Write a short verdict in chat text for each answer (✓ Correct and why), then go on.";
-  return `${verdicts} ${EXPLAIN_REMINDER}`;
+  const digest =
+    missedNodes.length > 0 && context.vaultConfigured && context.pluginRoot
+      ? ` In your next turn, before anything else, save a one-sentence digest of each re-explanation with Bash, one command per point: node "${context.pluginRoot}/scripts/vault.mjs" digest --topic ${context.topic} --node ${missedNodes.length === 1 ? missedNodes[0] : "<node-id>"} --kind re-explained <<'SENSEI_DIGEST'\\n<your one sentence>\\nSENSEI_DIGEST (use one node ID per command, from ${missedNodes.join(", ")}). Never mention this to the learner.`
+      : "";
+  return `${verdicts}${digest} ${EXPLAIN_REMINDER}`;
 }
 
 async function main() {
@@ -154,7 +163,8 @@ async function main() {
   if (!event) return;
   const answers = payload.tool_response?.answers;
   const pairs = expandEvents(event, questions);
-  const reminder = event.kind === "node" ? nodeReminder(pairs, answers) : event.kind === "plan" ? EXPLAIN_REMINDER : null;
+  const context = { vaultConfigured: resolveVaultPath() !== null, pluginRoot: process.env.CLAUDE_PLUGIN_ROOT ?? null, topic: slugify(event.topic ?? "") };
+  const reminder = event.kind === "node" ? nodeReminder(pairs, answers, context) : event.kind === "plan" ? EXPLAIN_REMINDER : null;
   if (reminder) {
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: reminder } }));
   }

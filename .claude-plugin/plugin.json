@@ -7,5 +7,13 @@
   "license": "MIT",
   "keywords": ["teaching", "learning", "pedagogy", "diagrams"],
   "homepage": "https://github.com/rishichawda/sensei",
-  "repository": "https://github.com/rishichawda/sensei"
+  "repository": "https://github.com/rishichawda/sensei",
+  "userConfig": {
+    "vault_path": {
+      "type": "directory",
+      "title": "Obsidian vault",
+      "description": "Folder of your Obsidian vault. Sensei saves lesson notes under <vault>/sensei/. Leave empty to skip.",
+      "required": false
+    }
+  }
 }
