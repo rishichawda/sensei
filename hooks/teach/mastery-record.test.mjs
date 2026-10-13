@@ -626,6 +626,7 @@ test("nodeReminder asks for a re-explanation digest only when a vault is configu
   const withVault = nodeReminder(pairs, missed, context);
   assert.ok(withVault.includes('node "/p/scripts/vault.mjs" digest --topic dns --node referrals --kind re-explained'));
   assert.ok(withVault.includes("next turn"));
+  assert.ok(withVault.includes("<<'SENSEI_DIGEST'\n<your one sentence>\nSENSEI_DIGEST"), "heredoc lines are real line breaks, not a backslash and n");
 
   const passed = nodeReminder(pairs, { "Q?": "A" }, context);
   assert.ok(!passed.includes("vault.mjs"));

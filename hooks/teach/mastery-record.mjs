@@ -131,7 +131,7 @@ export function nodeReminder(pairs, answers, context = { vaultConfigured: false,
       : "Write a short verdict in chat text for each answer (✓ Correct and why), then go on.";
   const digest =
     missedNodes.length > 0 && context.vaultConfigured && context.pluginRoot
-      ? ` In your next turn, before anything else, save a one-sentence digest of each re-explanation with Bash, one command per point: node "${context.pluginRoot}/scripts/vault.mjs" digest --topic ${context.topic} --node ${missedNodes.length === 1 ? missedNodes[0] : "<node-id>"} --kind re-explained <<'SENSEI_DIGEST'\\n<your one sentence>\\nSENSEI_DIGEST (use one node ID per command, from ${missedNodes.join(", ")}). Never mention this to the learner.`
+      ? ` In your next turn, before anything else, save a one-sentence digest of each re-explanation with Bash, one command per point: node "${context.pluginRoot}/scripts/vault.mjs" digest --topic ${context.topic} --node ${missedNodes.length === 1 ? missedNodes[0] : "<node-id>"} --kind re-explained <<'SENSEI_DIGEST'\n<your one sentence>\nSENSEI_DIGEST (use one node ID per command, from ${missedNodes.join(", ")}). Never mention this to the learner.`
       : "";
   return `${verdicts}${digest} ${EXPLAIN_REMINDER}`;
 }
