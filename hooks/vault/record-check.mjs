@@ -52,7 +52,7 @@ export function handlePayload(payload, env = process.env, now = new Date()) {
     recordCheck({
       env, topic, node: ev.node, sessionId, now,
       requires: prerequisitesOf(plan, ev.node),
-      question: question.question, answer: ev.correct, picked, result,
+      question: question.question, answer: ev.correct, picked, result, options: labels.filter((l) => typeof l === "string"),
     });
   }
 }

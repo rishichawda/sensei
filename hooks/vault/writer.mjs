@@ -46,10 +46,10 @@ function appendToNote({ env, topic, node, sessionId, now, requires, build }) {
   }
 }
 
-export function recordCheck({ env = process.env, topic, node, sessionId, now = new Date(), requires = [], question, answer, picked, result }) {
+export function recordCheck({ env = process.env, topic, node, sessionId, now = new Date(), requires = [], question, answer, picked, result, options }) {
   return appendToNote({
     env, topic, node, sessionId, now, requires,
-    build: (existing) => checkText({ existing, question, answer, picked, result }),
+    build: (existing) => checkText({ existing, question, answer, picked, result, options }),
   });
 }
 

@@ -28,6 +28,27 @@ test("cardBlock writes a multi-line card and squashes blank lines inside the que
   assert.equal(cardBlock(question, "1\nthen 2"), "What prints?\n```js\nconsole.log(1)\nconsole.log(2)\n```\n?\n1 then 2\n");
 });
 
+test("cardBlock lists the options under the question so a multiple-choice card stands alone", () => {
+  assert.equal(
+    cardBlock("Which damages a coating?", "Heat", ["Heat", "Water", "Soft cloth"]),
+    "Which damages a coating?\n- Heat\n- Water\n- Soft cloth\n?\nHeat\n",
+  );
+  assert.equal(cardBlock("Q?", "A", []), "Q?\n?\nA\n");
+  assert.equal(cardBlock("Q?", "A", ["A", "I don't know"]), "Q?\n- A\n?\nA\n");
+});
+
+test("hasCard matches a card whose front lists options, whatever their order", () => {
+  const text = `\n\n${cardBlock("Which damages a coating?", "Heat", ["Water", "Heat"])}`;
+  assert.equal(hasCard(text, "Which damages a coating?"), true);
+  assert.equal(hasCard(text, "Which cleans a coating?"), false);
+});
+
+test("checkText writes the options on the card and reuses the card on a re-ask", () => {
+  const first = checkText({ existing: "", question: "Q?", answer: "B", picked: "B", result: "passed", options: ["A", "B"] });
+  assert.match(first, /Q\?\n- A\n- B\n\?\nB\n/);
+  assert.equal(checkText({ existing: first, question: "Q?", answer: "B", picked: "A", result: "failed", options: ["B", "A"] }), '\n> ✗ Picked "A" on "Q?". Correct answer: B\n');
+});
+
 test("hasCard finds a card by its question, ignoring whitespace, and ignores answers", () => {
   const card = cardBlock("What does a resolver\ndo on a miss?", "It asks root");
   const text = `---\n---\n#flashcards/dns/x\n\n## 2026-10-13 14:05\n${sessionMarker("s1")}\n\n${card}\n> ✓ Answered correctly.\n`;

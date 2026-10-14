@@ -24,12 +24,15 @@ export function newNoteText({ topic, node, requires }) {
   return `---\ntopic: ${topic}\nnode: ${node}\nrequires: [${links}]\n---\n#flashcards/${topic}/${node}\n`;
 }
 
-// A multi-line card is "question", a line holding "?", "answer". Obsidian Spaced
-// Repetition ends a card at a blank line, so blank lines inside the question are
-// squashed when it is written and when it is compared.
-export function cardBlock(question, answer) {
+// A multi-line card is "question" and the quiz's options as a list, a line holding "?",
+// "answer". The options stay on the front because the question often reads "which of
+// these" and means nothing without them. Obsidian Spaced Repetition ends a card at a
+// blank line, so blank lines inside the question are squashed when it is written and
+// when it is compared.
+export function cardBlock(question, answer, options = []) {
   const q = String(question).replace(/\n\s*\n/g, "\n").trim();
-  return `${q}\n?\n${squash(answer)}\n`;
+  const list = options.filter((label) => label !== IDK).map((label) => `\n- ${squash(label)}`).join("");
+  return `${q}${list}\n?\n${squash(answer)}\n`;
 }
 
 export function hasCard(text, question) {
@@ -38,7 +41,7 @@ export function hasCard(text, question) {
   for (let i = 0; i < parts.length - 1; i++) {
     const cut = parts[i].lastIndexOf("\n\n");
     const asked = cut === -1 ? parts[i] : parts[i].slice(cut + 2);
-    if (squash(asked) === target) return true;
+    if (squash(asked).startsWith(target)) return true; // the front is the question plus its options
   }
   return false;
 }
@@ -56,10 +59,10 @@ export function attemptLine({ result, picked, question, answer, withCard }) {
   return `> ✗ Picked "${squash(picked)}"${where}. ${tail}`;
 }
 
-export function checkText({ existing, question, answer, picked, result }) {
+export function checkText({ existing, question, answer, picked, result, options = [] }) {
   const withCard = !hasCard(existing, question);
   const line = attemptLine({ result, picked, question, answer, withCard });
-  return withCard ? `\n${cardBlock(question, answer)}\n${line}\n` : `\n${line}\n`;
+  return withCard ? `\n${cardBlock(question, answer, options)}\n${line}\n` : `\n${line}\n`;
 }
 
 export function digestText(kind, digest) {

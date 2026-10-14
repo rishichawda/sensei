@@ -52,7 +52,7 @@ test("a correct graded check writes the card, the attempt and the active file", 
   run(payload({ tag: NODE_TAG, questions: [Q], answers: { [Q.question]: "Ask the next server" } }), env);
   const note = readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8");
   assert.ok(note.includes('requires: ["[[sensei/dns/delegation|delegation]]"]'));
-  assert.ok(note.includes("What does a referral do?\n?\nAsk the next server\n"));
+  assert.ok(note.includes("What does a referral do?\n- Ask the next server\n- Return the final answer\n?\nAsk the next server\n"));
   assert.ok(note.includes("> ✓ Answered correctly."));
   assert.deepEqual(JSON.parse(readFileSync(activePath("sess-1", env), "utf8")), { topic: "dns" });
 });
