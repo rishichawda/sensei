@@ -123,6 +123,16 @@ describe('band while planning', () => {
   const proposed = { nodes: {}, session: { goal: 'Understand DNS', status: 'intake', dependencyMap: null, proposedPlan: LEDGER.session.dependencyMap } }
   const band = (surface = 'terminal') => ({ plugin: 'sensei', surface, component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false } }) as const
 
+  test('animates the planning glyph', async ($, on) => {
+    const clock = world(on, { ...LESSON, [`${CONFIG}/sensei/ledgers/dns.json`]: JSON.stringify(intake) })
+    await $.session.start({ ...START, surface: 'terminal' })
+    const ui = await $.ui.mount(band())
+    const first = await ui.find({ type: 'Text', text: /Planning/ })
+    await clock.advance(120)
+    const second = await ui.find({ type: 'Text', text: /Planning/ })
+    expect(first?.text).not.toEqual(second?.text)
+  })
+
   test('colours the state and leaves the goal plain', async ($, on) => {
     world(on, { ...LESSON, [`${CONFIG}/sensei/ledgers/dns.json`]: JSON.stringify(proposed) })
     await $.session.start({ ...START, surface: 'terminal' })

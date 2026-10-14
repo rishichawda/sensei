@@ -6,6 +6,6 @@ export type MapView = {
 
 declare module 'claude-code' {
   interface PluginState {
-    sensei: { view: MapView }
+    sensei: { view: MapView; spin: number }
   }
 }

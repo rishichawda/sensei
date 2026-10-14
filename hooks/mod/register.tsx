@@ -6,7 +6,11 @@ import { displayName } from '../vault/graph.mjs'
 import { bandLine, changedStatuses, chipLabel, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
 
 const PANE = 'map'
+const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 const view = atom({ plugin: 'sensei', key: 'view' } as const, { topic: null, ledger: null, selected: null } as MapView)
+
+// The planning glyph's frame; only moves while a lesson is being planned.
+const spin = atom({ plugin: 'sensei', key: 'spin' } as const, 0)
 
 async function configRoot($: any): Promise<string | null> {
   const dir = await $.env.get('CLAUDE_CONFIG_DIR')
@@ -43,6 +47,7 @@ export const register: Register = on => {
     // `drawn` is what the view holds: any change to the ledger redraws.
     let previous: ReturnType<typeof snapshot> = null
     let drawn: string | undefined
+    let planning = false
     const refresh = async () => {
       const loaded = await load($)
       const raw = JSON.stringify(loaded)
@@ -51,6 +56,7 @@ export const register: Register = on => {
       const current = loaded ? snapshot(loaded.topic, loaded.ledger) : null
       for (const text of changedStatuses(previous, current)) $.ui.toast(text)
       previous = current
+      planning = bandLine(loaded?.ledger)?.animated === true
       await update($, view, v => ({
         topic: loaded?.topic ?? null,
         ledger: loaded?.ledger ?? null,
@@ -59,6 +65,9 @@ export const register: Register = on => {
     }
     await refresh()
     $.clock.every(1000, refresh)
+    $.clock.every(120, async () => {
+      if (planning) await update($, spin, n => (n + 1) % SPINNER.length)
+    })
 
     return next(e)
   })
@@ -72,10 +81,11 @@ export const register: Register = on => {
     const v = await read($, view)
     const band = bandLine(v.ledger)
     if (!band) return next(e)
+    const frame = band.animated ? SPINNER[await read($, spin)] : band.glyph
     const { Text } = $.ui.resolve(e)
     return (
       <Text>
-        <Text color={band.tone}>{`${band.glyph} ${band.head}`}</Text>
+        <Text color={band.tone}>{`${frame} ${band.head}`}</Text>
         {band.detail && <Text dimColor>{`  ·  ${band.detail}`}</Text>}
         {band.last && <Text color="green" dimColor>{`  ·  ✓ previously passed: ${band.last}`}</Text>}
         <Text dimColor>{'  ·  /map'}</Text>
