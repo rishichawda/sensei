@@ -70,11 +70,31 @@ describe('map pane', () => {
     })
   }
 
-  test('says there is no active lesson when no topic is active', async ($, on) => {
+  test('says there is no plan yet when no topic is active', async ($, on) => {
     world(on, {})
     await $.session.start({ ...START, surface: 'terminal' })
     const ui = await $.ui.mount({ plugin: 'sensei', surface: 'terminal', component: 'Pane', requestId: 'map', props: PANE })
-    expect(await ui.find({ type: 'Text', text: /No active lesson/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /No plan yet/ })).toBeDefined()
+  })
+
+  test('says there is no plan yet while the lesson has none', async ($, on) => {
+    const intake = { nodes: {}, session: { goal: 'Understand DNS', status: 'intake', dependencyMap: null } }
+    world(on, { ...LESSON, [`${CONFIG}/sensei/ledgers/dns.json`]: JSON.stringify(intake) })
+    await $.session.start({ ...START, surface: 'terminal' })
+    const ui = await $.ui.mount({ plugin: 'sensei', surface: 'terminal', component: 'Pane', requestId: 'map', props: PANE })
+    expect(await ui.find({ type: 'Text', text: /No plan yet/ })).toBeDefined()
+  })
+
+  test('draws a proposed plan with a clear label and no progress count', async ($, on) => {
+    const proposed = { nodes: {}, session: { goal: 'Understand DNS', status: 'intake', dependencyMap: null, proposedPlan: LEDGER.session.dependencyMap } }
+    world(on, { ...LESSON, [`${CONFIG}/sensei/ledgers/dns.json`]: JSON.stringify(proposed) })
+    await $.session.start({ ...START, surface: 'terminal' })
+    const ui = await $.ui.mount({ plugin: 'sensei', surface: 'terminal', component: 'Pane', requestId: 'map', props: PANE })
+    expect(await ui.find({ type: 'Text', text: /Proposed plan — not approved yet/ })).toBeDefined()
+    expect(await ui.find({ type: 'Button', key: 'node:referrals' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /passed/ })).toBeUndefined()
+    await ui.press({ key: 'node:referrals' })
+    expect(await ui.find({ type: 'Text', text: /Status: proposed/ })).toBeDefined()
   })
 
   test('draws what it can from a ledger with a cyclic plan and missing fields', async ($, on) => {

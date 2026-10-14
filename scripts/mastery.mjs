@@ -106,8 +106,8 @@ export function setSessionGoal(topicLedger, goal, now = new Date()) {
       session: { goal, dependencyMap: null, nextNodeId: null, status: "intake", updatedAt: now.toISOString() },
     };
   }
-  const base = touchSession(topicLedger, now);
-  return { ...base, session: { ...base.session, goal, updatedAt: now.toISOString() } };
+  const { proposedPlan, ...kept } = touchSession(topicLedger, now).session;
+  return { ...topicLedger, session: { ...kept, goal, updatedAt: now.toISOString() } };
 }
 
 // The frontier and status are facts about the ledger, not bookkeeping: the
@@ -138,9 +138,17 @@ function applyDerived(topicLedger, now) {
   return { ...topicLedger, session: { ...derived, updatedAt: now.toISOString() } };
 }
 
+// A plan shown to the learner but not yet approved. It sits beside the session's
+// real state (dependencyMap, status) so nothing that resumes or grades reads it.
+export function setProposedPlan(topicLedger, plan, now = new Date()) {
+  const base = touchSession(topicLedger, now);
+  return { ...base, session: { ...base.session, proposedPlan: plan, updatedAt: now.toISOString() } };
+}
+
 export function setSessionPlan(topicLedger, plan, now = new Date()) {
   const base = touchSession(topicLedger, now);
-  const session = { ...base.session, dependencyMap: plan, nextNodeId: null, status: "planned", updatedAt: now.toISOString() };
+  const { proposedPlan, ...kept } = base.session;
+  const session = { ...kept, dependencyMap: plan, nextNodeId: null, status: "planned", updatedAt: now.toISOString() };
   return applyDerived({ ...base, session }, now);
 }
 

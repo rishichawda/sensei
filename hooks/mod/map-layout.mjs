@@ -3,6 +3,15 @@
 import { displayName, prerequisitesOf } from "../vault/graph.mjs";
 
 const plan = (ledger) => ledger?.session?.dependencyMap ?? null;
+
+// A plan the learner has been shown but has not approved yet (set before approval,
+// removed by it). Only well-formed plans count.
+export function proposedPlan(ledger) {
+  const proposed = ledger?.session?.proposedPlan;
+  return Array.isArray(proposed?.nodes) ? proposed : null;
+}
+
+const drawnPlan = (ledger) => plan(ledger) ?? proposedPlan(ledger);
 const statusOf = (ledger, id) => ledger?.nodes?.[id]?.status ?? null;
 
 // Row = longest prerequisite chain above the node. A cycle never crashes: the
@@ -52,6 +61,8 @@ export function bandText(ledger) {
   if (!session) return null;
   const { passed, total } = progress(ledger);
   const goal = session.goal ? ` · ${session.goal}` : "";
+  const proposed = proposedPlan(ledger);
+  if (session.status === "intake" && proposed) return `Plan proposed · ${proposed.nodes.length} steps${goal}`;
   if (session.status === "intake") return session.goal ? `Planning · ${session.goal}` : null;
   if (session.status === "planned") return `Plan ready · ${total} steps${goal}`;
   if (session.status === "complete") return `All ${total} steps passed`;
@@ -66,7 +77,7 @@ export function snapshot(topic, ledger) {
   if (!ledger) return null;
   const statuses = {};
   for (const [id, node] of Object.entries(ledger.nodes ?? {})) statuses[id] = node?.status ?? "";
-  return { topic, statuses, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
+  return { topic, statuses, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null, proposed: ledger.session?.proposedPlan ?? null };
 }
 
 export function changedStatuses(previous, current) {
@@ -81,12 +92,13 @@ export function changedStatuses(previous, current) {
 }
 
 export function nodeDetail(ledger, id) {
-  const edges = plan(ledger)?.edges ?? [];
+  const shown = drawnPlan(ledger);
+  const edges = shown?.edges ?? [];
   const taught = ledger?.nodes?.[id]?.lastTaughtAt;
   return {
     name: displayName(id),
-    status: stateOf(ledger, id),
-    prerequisites: prerequisitesOf(plan(ledger), id).map(displayName),
+    status: plan(ledger) ? stateOf(ledger, id) : "proposed",
+    prerequisites: prerequisitesOf(shown, id).map(displayName),
     dependents: edges.filter((e) => Array.isArray(e) && e[0] === id).map((e) => displayName(e[1])),
     taught: typeof taught === "string" ? taught.slice(0, 10) : null,
   };

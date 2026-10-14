@@ -18,6 +18,7 @@ import {
   touchSession,
   setSessionGoal,
   setSessionPlan,
+  setProposedPlan,
   advanceSession,
   deriveSession,
   addProbe,
@@ -973,4 +974,24 @@ test("a new goal on a row past intake starts a session row without foldedStrands
   assert.ok(tl.session.foldedStrands);
   tl = setSessionGoal(tl, "something else", T1);
   assert.equal("foldedStrands" in tl.session, false);
+});
+
+test("setProposedPlan stores the plan beside the session without approving it", () => {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  const plan = { nodes: ["a", "b"], edges: [["a", "b"]] };
+  const base = setSessionGoal(emptyTopicLedger(), "g", now);
+  const result = setProposedPlan(base, plan, now);
+  assert.deepEqual(result.session.proposedPlan, plan);
+  assert.equal(result.session.dependencyMap, null);
+  assert.equal(result.session.status, "intake");
+  assert.equal(result.session.goal, "g");
+  assert.equal(base.session.proposedPlan, undefined, "the input ledger must not be mutated");
+});
+
+test("setSessionPlan drops the proposed plan it approves, and a new goal drops it too", () => {
+  const plan = { nodes: ["a"], edges: [] };
+  const proposed = setProposedPlan(emptyTopicLedger(), plan);
+  assert.equal("proposedPlan" in setSessionPlan(proposed, plan).session, false);
+  const planned = setSessionPlan(emptyTopicLedger(), plan);
+  assert.equal("proposedPlan" in setSessionGoal(setProposedPlan(planned, plan), "new").session, false);
 });

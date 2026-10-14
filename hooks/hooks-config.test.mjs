@@ -38,3 +38,10 @@ test("the vault hooks are registered: sync on SessionStart, record after every A
   assert.equal(registered("SessionStart", undefined, "hooks/vault/session-start.mjs"), true);
   assert.equal(registered("PostToolUse", "AskUserQuestion", "hooks/vault/record-check.mjs"), true);
 });
+
+test("propose-plan runs before every AskUserQuestion, beside the tag check", () => {
+  const commands = (hooksJson.hooks.PreToolUse ?? [])
+    .filter((entry) => entry.matcher === "AskUserQuestion")
+    .flatMap((entry) => entry.hooks.map((h) => h.command));
+  assert.equal(commands.some((c) => c.includes("hooks/teach/propose-plan.mjs")), true);
+});

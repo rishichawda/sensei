@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { layers, progress, glyph, bandText, snapshot, changedStatuses, nodeDetail } from "./map-layout.mjs";
+import { layers, progress, glyph, bandText, snapshot, changedStatuses, nodeDetail, proposedPlan } from "./map-layout.mjs";
 
 const LEDGER = {
   version: 1,
@@ -76,4 +76,17 @@ test("nodeDetail calls the node being taught in progress, the same state glyph d
   const started = { ...LEDGER, nodes: {} };
   assert.equal(nodeDetail(started, "delegation").status, "in progress");
   assert.equal(glyph(started, "delegation"), "●");
+});
+
+const PROPOSED = { version: 1, nodes: {}, session: { goal: "Understand DNS", status: "intake", dependencyMap: null, nextNodeId: null, proposedPlan: { nodes: ["a", "b"], edges: [["a", "b"]] } } };
+
+test("a proposed plan is drawn from the ledger but never counted as progress", () => {
+  assert.deepEqual(proposedPlan(PROPOSED), { nodes: ["a", "b"], edges: [["a", "b"]] });
+  assert.equal(proposedPlan(LEDGER), null, "an approved plan is not a proposal");
+  assert.equal(proposedPlan({ ...PROPOSED, session: { ...PROPOSED.session, proposedPlan: { nodes: "a" } } }), null);
+  assert.deepEqual(progress(PROPOSED), { passed: 0, total: 0 });
+  assert.equal(bandText(PROPOSED), "Plan proposed · 2 steps · Understand DNS");
+  assert.equal(nodeDetail(PROPOSED, "b").status, "proposed");
+  assert.deepEqual(nodeDetail(PROPOSED, "b").prerequisites, ["a"]);
+  assert.notDeepEqual(snapshot("dns", PROPOSED), snapshot("dns", { ...PROPOSED, session: { ...PROPOSED.session, proposedPlan: null } }), "a new proposal changes the snapshot");
 });

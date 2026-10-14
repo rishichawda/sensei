@@ -3,7 +3,7 @@ import type { Register } from 'claude-code'
 
 import type { MapView } from '../../types'
 import { displayName } from '../vault/graph.mjs'
-import { bandText, changedStatuses, glyph, layers, nodeDetail, progress, snapshot } from './map-layout.mjs'
+import { bandText, changedStatuses, glyph, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
 
 const PANE = 'map'
 const view = atom({ plugin: 'sensei', key: 'view' } as const, { topic: null, ledger: null, selected: null } as MapView)
@@ -79,14 +79,14 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const v = await read($, view)
-    if (!v.ledger) {
-      return <Text dimColor>No active lesson. Ask Claude to teach you something to start one.</Text>
-    }
     const ledger = v.ledger as any
-    const map = ledger.session?.dependencyMap
+    const proposed = proposedPlan(ledger)
+    const map = ledger?.session?.dependencyMap ?? proposed
     if (!map || !Array.isArray(map.nodes) || map.nodes.length === 0) {
-      return <Text dimColor>{ledger.session?.goal ? `Planning · ${ledger.session.goal}` : 'Planning your lesson…'}</Text>
+      const goal = ledger?.session?.goal
+      return <Text dimColor>{goal ? `No plan yet · ${goal}. Claude shows one for you to approve first.` : 'No plan yet. Ask Claude to teach you something and it shows a plan for you to approve first.'}</Text>
     }
+    const isProposal = !ledger.session?.dependencyMap
     const { passed, total } = progress(ledger)
     const rows = layers(map.nodes, map.edges)
     const detail = v.selected ? nodeDetail(ledger, v.selected) : null
@@ -94,8 +94,9 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
+          {isProposal && <Text bold>Proposed plan — not approved yet</Text>}
           <Text bold>{ledger.session?.goal ?? displayName(v.topic ?? '')}</Text>
-          <Text dimColor>{`${passed} of ${total} passed`}</Text>
+          <Text dimColor>{isProposal ? `${map.nodes.length} steps` : `${passed} of ${total} passed`}</Text>
         </Box>
         {rows.map((row, i) => (
           <Box key={`row:${i}`} flexDirection="row" flexWrap="wrap" gap={1}>
