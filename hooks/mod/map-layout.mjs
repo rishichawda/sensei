@@ -78,7 +78,7 @@ const line = (text, tone, last = null) => ({ text, tone, last });
 
 // What the band above the prompt says, from the ledger alone, so it never shows a stale result.
 // The leading glyph and colour follow the plan: ◌ planning (plain), ◇ proposed (yellow, waiting for
-// the learner), ◆ approved and ● in progress (cyan), ✗ retry (red), ✓ done (green). Named colors.
+// the learner), ● approved and in progress (cyan), ✗ retry (red), ✓ done (green). Named colors.
 export function bandLine(ledger) {
   const session = ledger?.session;
   if (!session) return null;
@@ -87,9 +87,8 @@ export function bandLine(ledger) {
   const proposed = proposedPlan(ledger);
   if (session.status === "intake" && proposed) return line(`◇ Plan proposed · ${proposed.nodes.length} steps${goal}`, "yellow");
   if (session.status === "intake") return session.goal ? line(`◌ Planning · ${session.goal}`) : null;
-  if (session.status === "planned") return line(`◆ Plan ready · ${total} steps${goal}`, "cyan");
   if (session.status === "complete") return line(`✓ All ${total} steps passed`, "green");
-  if (session.status === "in-progress" && session.nextNodeId) {
+  if ((session.status === "planned" || session.status === "in-progress") && session.nextNodeId) {
     const retry = statusOf(ledger, session.nextNodeId) === "failed";
     const step = `${retry ? "✗" : "●"} Step ${passed + 1} of ${total} · ${retry ? "Retry" : "In progress"}: ${displayName(session.nextNodeId)}`;
     return line(step, retry ? "red" : "cyan", lastPassed(ledger));

@@ -55,7 +55,8 @@ test("bandLine describes the step in progress, a retry and the step passed last"
 test("bandLine per session state", () => {
   const s = (extra) => ({ ...LEDGER, session: { ...LEDGER.session, ...extra } });
   assert.deepEqual(bandLine(s({ status: "intake" })), { text: "◌ Planning · Understand DNS", tone: undefined, last: null });
-  assert.deepEqual(bandLine(s({ status: "planned" })), { text: "◆ Plan ready · 3 steps · Understand DNS", tone: "cyan", last: null });
+  const approved = { ...LEDGER, nodes: {}, session: { ...LEDGER.session, status: "planned", nextNodeId: "ip-routing" } };
+  assert.deepEqual(bandLine(approved), { text: "● Step 1 of 3 · In progress: ip routing", tone: "cyan", last: null }, "an approved plan shows progress before any check is recorded");
   assert.deepEqual(bandLine(s({ status: "complete" })), { text: "✓ All 3 steps passed", tone: "green", last: null });
   assert.equal(bandLine({ nodes: {}, session: null }), null);
   assert.equal(bandLine(null), null);
