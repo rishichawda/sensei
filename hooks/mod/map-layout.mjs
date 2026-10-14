@@ -34,12 +34,17 @@ export function progress(ledger) {
   return { passed: nodes.filter((id) => statusOf(ledger, id) === "passed").length, total: nodes.length };
 }
 
-export function glyph(ledger, id) {
+// The ledger records only passed and failed; the node being taught has neither yet.
+function stateOf(ledger, id) {
   const status = statusOf(ledger, id);
-  if (status === "passed") return "✓";
-  if (status === "failed") return "✗";
-  if (ledger?.session?.nextNodeId === id) return "●";
-  return "○";
+  if (status === "passed" || status === "failed") return status;
+  return ledger?.session?.nextNodeId === id ? "in progress" : "not started";
+}
+
+const GLYPHS = { passed: "✓", failed: "✗", "in progress": "●", "not started": "○" };
+
+export function glyph(ledger, id) {
+  return GLYPHS[stateOf(ledger, id)];
 }
 
 export function bandText(ledger) {
@@ -80,7 +85,7 @@ export function nodeDetail(ledger, id) {
   const taught = ledger?.nodes?.[id]?.lastTaughtAt;
   return {
     name: displayName(id),
-    status: statusOf(ledger, id) ?? "not started",
+    status: stateOf(ledger, id),
     prerequisites: prerequisitesOf(plan(ledger), id).map(displayName),
     dependents: edges.filter((e) => Array.isArray(e) && e[0] === id).map((e) => displayName(e[1])),
     taught: typeof taught === "string" ? taught.slice(0, 10) : null,

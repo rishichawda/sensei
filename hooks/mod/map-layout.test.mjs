@@ -71,3 +71,9 @@ test("nodeDetail lists neighbours and the date taught", () => {
   });
   assert.deepEqual(nodeDetail(LEDGER, "referrals"), { name: "referrals", status: "not started", prerequisites: ["delegation"], dependents: [], taught: null });
 });
+
+test("nodeDetail calls the node being taught in progress, the same state glyph draws as current", () => {
+  const started = { ...LEDGER, nodes: {} };
+  assert.equal(nodeDetail(started, "delegation").status, "in progress");
+  assert.equal(glyph(started, "delegation"), "●");
+});
