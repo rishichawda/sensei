@@ -45,7 +45,11 @@ export const register: Register = on => {
       const loaded = await load($)
       const current = loaded ? snapshot(loaded.topic, loaded.ledger) : null
       if (JSON.stringify(current) === JSON.stringify(previous)) return
-      for (const text of changedStatuses(previous, current)) $.ui.toast(text)
+      const results = changedStatuses(previous, current)
+      for (const text of results) $.ui.toast(text)
+      // The toast is brief and in the corner; the status line keeps the latest result by the prompt.
+      if (results.length > 0) $.ui.status(results[results.length - 1])
+      else if (!current) $.ui.status(undefined)
       previous = current
       await update($, view, v => ({
         topic: loaded?.topic ?? null,

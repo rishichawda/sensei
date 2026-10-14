@@ -24,7 +24,7 @@ const SESSION = 'test-session'
 
 // The engine's file system, session id, environment and clock are what the plugin
 // reads; the test stands in for each beneath the plugin.
-function world(on: any, files: Record<string, string>, toasts: string[] = []) {
+function world(on: any, files: Record<string, string>, toasts: string[] = [], statuses: (string | undefined)[] = []) {
   mock.env(on, { CLAUDE_CONFIG_DIR: CONFIG })
   const clock = mock.clock(on)
   on('session.id', () => ({ value: SESSION }))
@@ -36,6 +36,10 @@ function world(on: any, files: Record<string, string>, toasts: string[] = []) {
   on('command.register', (_$: any, e: any) => ({ value: { command: e.name } }))
   on('ui.toast', (_$: any, e: any) => {
     toasts.push(e.text)
+    return { value: undefined }
+  })
+  on('ui.status', (_$: any, e: any) => {
+    statuses.push(e.text)
     return { value: undefined }
   })
   return clock
@@ -110,5 +114,23 @@ describe('toasts', () => {
 
     await clock.advance(3000)
     expect(toasts).toEqual(['✓ delegation'])
+  })
+
+  test('pins the latest result on the status line beside the toast, and clears it with the lesson', async ($, on) => {
+    const toasts: string[] = []
+    const statuses: (string | undefined)[] = []
+    const files = { ...LESSON }
+    const clock = world(on, files, toasts, statuses)
+    await $.session.start({ ...START, surface: 'terminal' })
+
+    const next = structuredClone(LEDGER)
+    next.nodes.delegation.status = 'passed'
+    files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
+    await clock.advance(1000)
+    expect(statuses).toEqual(['✓ delegation'])
+
+    delete files[`${CONFIG}/sensei/active/${SESSION}.json`]
+    await clock.advance(1000)
+    expect(statuses).toEqual(['✓ delegation', undefined])
   })
 })
