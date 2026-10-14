@@ -76,7 +76,8 @@ export const register: Register = on => {
     return (
       <Text>
         <Text color={band.tone}>{band.text}</Text>
-        <Text dimColor>{`${band.last ? `  ·  previously passed: ${band.last}` : ''}  ·  /map`}</Text>
+        {band.last && <Text color="green" dimColor>{`  ·  ✓ previously passed: ${band.last}`}</Text>}
+        <Text dimColor>{'  ·  /map'}</Text>
       </Text>
     )
   })

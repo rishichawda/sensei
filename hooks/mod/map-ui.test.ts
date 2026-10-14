@@ -112,6 +112,8 @@ describe('band', () => {
     })
     const steps = await ui.findAll({ type: 'Text', text: '✗ Step 2 of 3 · Retry: delegation' })
     expect(steps.map(el => el.props.color)).toContain('red')
+    const passed = await ui.findAll({ type: 'Text', text: /previously passed/ })
+    expect(passed.map(el => el.props.color)).toContain('green')
     expect(await ui.find({ type: 'Text', text: /previously passed: ip routing/ })).toBeDefined()
   })
 })
