@@ -105,3 +105,9 @@ test("setup refuses a relative path or a folder that does not exist", () => {
 test("an unknown command prints usage and exits 1", () => {
   assert.equal(run(["nope"], setup().env).status, 1);
 });
+
+test("status says a configured path that is not a folder is not configured, and why", () => {
+  const { env, vault } = setup();
+  const missing = { ...env, CLAUDE_PLUGIN_OPTION_VAULT_PATH: join(vault, "nope") };
+  assert.deepEqual(JSON.parse(run(["status"], missing).stdout), { configured: false, declined: false, problem: `folder not found: ${join(vault, "nope")}` });
+});

@@ -69,6 +69,16 @@ function digest(flags) {
   console.log(written ? "saved" : "not saved; see vault-debug.log");
 }
 
+// A path that is not a folder is "no vault", as the writer treats it; `problem` lets the
+// teach skill say why when it offers setup again.
+function status() {
+  const path = resolveVaultPath();
+  const declined = isDeclined();
+  if (path === null) return { configured: false, declined };
+  if (!existsSync(path) || !statSync(path).isDirectory()) return { configured: false, declined, problem: `folder not found: ${path}` };
+  return { configured: true, declined };
+}
+
 function setup(rest) {
   const folder = rest[0];
   if (!folder || !isAbsolute(folder)) fail("usage: vault.mjs setup <absolute path to the vault folder>");
@@ -98,7 +108,7 @@ function setup(rest) {
 function main() {
   const { command, flags, rest } = parseArgs(process.argv.slice(2));
   if (command === "digest") return digest(flags);
-  if (command === "status") return console.log(JSON.stringify({ configured: resolveVaultPath() !== null, declined: isDeclined() }));
+  if (command === "status") return console.log(JSON.stringify(status()));
   if (command === "decline") return setDeclined();
   if (command === "setup") return setup(rest);
   console.error("Usage: vault.mjs <digest|status|decline|setup> ...");

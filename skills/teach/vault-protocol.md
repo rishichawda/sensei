@@ -6,9 +6,9 @@ Sensei can save what the learner learns into their Obsidian vault. Two things ar
 
 ## Section A — Offer the vault once (before the ledger lookup)
 
-1. Run `node "<plugin-root>/scripts/vault.mjs" status`. It prints `{"configured":…,"declined":…}`.
+1. Run `node "<plugin-root>/scripts/vault.mjs" status`. It prints `{"configured":…,"declined":…}`, plus `"problem"` when a vault folder is set but cannot be used.
 2. If `configured` is true, or `declined` is true, do nothing more here.
-3. Otherwise ask once with `AskUserQuestion`, tagged `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "other"})}`. Question: "Want your lessons saved as notes in an Obsidian vault?" Options (3, no "I don't know"): "Set up my vault", "Not now", "Don't ask again".
+3. Otherwise ask once with `AskUserQuestion`, tagged `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "other"})}`. Question: "Want your lessons saved as notes in an Obsidian vault?" If `problem` is present, use "Your vault folder can't be used (<problem>). Want to set it up again so your lessons are saved as notes?" instead. Options (3, no "I don't know"): "Set up my vault", "Not now", "Don't ask again".
    - "Not now": carry on; ask again in a later session.
    - "Don't ask again": run `node "<plugin-root>/scripts/vault.mjs" decline`.
    - "Set up my vault": write one plain line asking for the full path of the vault folder and end your turn. When they reply with it, run `node "<plugin-root>/scripts/vault.mjs" setup "<path>"` and tell them in one plain sentence what it printed. If it says it could not save the setting, give them the instruction it printed, and carry on.
