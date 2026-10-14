@@ -111,3 +111,12 @@ test("status says a configured path that is not a folder is not configured, and 
   const missing = { ...env, CLAUDE_PLUGIN_OPTION_VAULT_PATH: join(vault, "nope") };
   assert.deepEqual(JSON.parse(run(["status"], missing).stdout), { configured: false, declined: false, problem: `folder not found: ${join(vault, "nope")}` });
 });
+
+test("pluginIdFor falls back to the plugin name when the root is a checkout, only if one installed plugin has that name", () => {
+  const list = [{ id: "other@x", installPath: "/a" }, { id: "sensei@rishichawda", installPath: "/cache/sensei" }];
+  assert.equal(pluginIdFor(list, "/checkout", "sensei"), "sensei@rishichawda");
+  assert.equal(pluginIdFor(list, "/checkout"), null, "no name, no fallback");
+  assert.equal(pluginIdFor([...list, { id: "sensei@fork", installPath: "/cache/fork" }], "/checkout", "sensei"), null, "two matches are ambiguous");
+  const here = mkdtempSync(join(tmpdir(), "plugin-id-"));
+  assert.equal(pluginIdFor([...list, { id: "sensei@fork", installPath: here }], here, "sensei"), "sensei@fork", "the folder match wins");
+});

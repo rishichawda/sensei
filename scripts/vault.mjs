@@ -31,10 +31,15 @@ function samePath(a, b) {
 }
 
 // `claude plugin list --json` gives { id, installPath } per plugin; the id is what
-// `claude plugin configure` wants, and the install path is how we know which one is us.
-export function pluginIdFor(list, pluginRoot) {
-  const found = (Array.isArray(list) ? list : []).find((entry) => entry && typeof entry.installPath === "string" && samePath(entry.installPath, pluginRoot));
-  return found ? found.id : null;
+// `claude plugin configure` wants. The install path says which one is us. Running from a
+// checkout (`--plugin-dir`) the root is not an install path, so fall back to the plugin's
+// name when exactly one installed plugin has it.
+export function pluginIdFor(list, pluginRoot, name) {
+  const entries = (Array.isArray(list) ? list : []).filter((entry) => entry && typeof entry.id === "string");
+  const byPath = entries.find((entry) => typeof entry.installPath === "string" && samePath(entry.installPath, pluginRoot));
+  if (byPath) return byPath.id;
+  const byName = entries.filter((entry) => entry.id.split("@")[0] === name);
+  return byName.length === 1 ? byName[0].id : null;
 }
 
 function fail(message) {
@@ -86,7 +91,8 @@ function setup(rest) {
   const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   let id = null;
   try {
-    id = pluginIdFor(JSON.parse(execFileSync("claude", ["plugin", "list", "--json"], { encoding: "utf8" })), pluginRoot);
+    const { name } = JSON.parse(readFileSync(resolve(pluginRoot, ".claude-plugin", "plugin.json"), "utf8"));
+    id = pluginIdFor(JSON.parse(execFileSync("claude", ["plugin", "list", "--json"], { encoding: "utf8" })), pluginRoot, name);
   } catch (error) {
     logVaultError(`setup: could not list plugins: ${error.message}`);
   }
