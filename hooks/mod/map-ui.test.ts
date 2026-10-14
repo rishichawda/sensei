@@ -118,6 +118,23 @@ describe('band', () => {
   })
 })
 
+describe('band while planning', () => {
+  const intake = { nodes: {}, session: { goal: 'Understand DNS', status: 'intake', dependencyMap: null } }
+  const proposed = { nodes: {}, session: { goal: 'Understand DNS', status: 'intake', dependencyMap: null, proposedPlan: LEDGER.session.dependencyMap } }
+  const band = (surface = 'terminal') => ({ plugin: 'sensei', surface, component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false } }) as const
+
+  test('colours the state and leaves the goal plain', async ($, on) => {
+    world(on, { ...LESSON, [`${CONFIG}/sensei/ledgers/dns.json`]: JSON.stringify(proposed) })
+    await $.session.start({ ...START, surface: 'terminal' })
+    const ui = await $.ui.mount(band())
+    const state = await ui.findAll({ type: 'Text', text: '◇ Plan proposed · 3 steps' })
+    expect(state.map(el => el.props.color)).toContain('yellow')
+    const goal = await ui.findAll({ type: 'Text', text: /^\s*·\s*Understand DNS$/ })
+    expect(goal.length).toBeGreaterThan(0)
+    expect(goal.every(el => el.props.color === undefined)).toBe(true)
+  })
+})
+
 describe('band follows the ledger', () => {
   test('moves from the old result to the new one when a later check changes the ledger', async ($, on) => {
     const files = { ...LESSON }

@@ -75,7 +75,8 @@ export const register: Register = on => {
     const { Text } = $.ui.resolve(e)
     return (
       <Text>
-        <Text color={band.tone}>{band.text}</Text>
+        <Text color={band.tone}>{`${band.glyph} ${band.head}`}</Text>
+        {band.detail && <Text dimColor>{`  ·  ${band.detail}`}</Text>}
         {band.last && <Text color="green" dimColor>{`  ·  ✓ previously passed: ${band.last}`}</Text>}
         <Text dimColor>{'  ·  /map'}</Text>
       </Text>
