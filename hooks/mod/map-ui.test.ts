@@ -154,3 +154,19 @@ describe('toasts', () => {
     expect(statuses).toEqual(['✓ delegation', undefined])
   })
 })
+
+describe('refresh', () => {
+  test('redraws when the goal or a proposed plan arrives after the first poll', async ($, on) => {
+    const files = { ...LESSON }
+    const ledgerPath = `${CONFIG}/sensei/ledgers/dns.json`
+    files[ledgerPath] = JSON.stringify({ nodes: {}, session: { status: 'intake', dependencyMap: null } })
+    const clock = world(on, files)
+    await $.session.start({ ...START, surface: 'terminal' })
+    const ui = await $.ui.mount({ plugin: 'sensei', surface: 'terminal', component: 'Pane', requestId: 'map', props: PANE })
+    expect(await ui.find({ type: 'Text', text: /No plan yet\./ })).toBeDefined()
+
+    files[ledgerPath] = JSON.stringify({ nodes: {}, session: { goal: 'Understand DNS', status: 'intake', dependencyMap: null } })
+    await clock.advance(1000)
+    expect(await ui.find({ type: 'Text', text: /No plan yet · Understand DNS/ })).toBeDefined()
+  })
+})

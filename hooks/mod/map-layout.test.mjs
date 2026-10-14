@@ -88,5 +88,4 @@ test("a proposed plan is drawn from the ledger but never counted as progress", (
   assert.equal(bandText(PROPOSED), "Plan proposed · 2 steps · Understand DNS");
   assert.equal(nodeDetail(PROPOSED, "b").status, "proposed");
   assert.deepEqual(nodeDetail(PROPOSED, "b").prerequisites, ["a"]);
-  assert.notDeepEqual(snapshot("dns", PROPOSED), snapshot("dns", { ...PROPOSED, session: { ...PROPOSED.session, proposedPlan: null } }), "a new proposal changes the snapshot");
 });

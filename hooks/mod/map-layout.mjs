@@ -77,7 +77,7 @@ export function snapshot(topic, ledger) {
   if (!ledger) return null;
   const statuses = {};
   for (const [id, node] of Object.entries(ledger.nodes ?? {})) statuses[id] = node?.status ?? "";
-  return { topic, statuses, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null, proposed: ledger.session?.proposedPlan ?? null };
+  return { topic, statuses, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
 }
 
 export function changedStatuses(previous, current) {

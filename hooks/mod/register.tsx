@@ -39,12 +39,16 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'map', description: 'Show your learning map' })
 
-    // Only used to word toasts; losing it on a reload just skips one toast.
+    // `previous` only words toasts; losing it on a reload just skips one toast.
+    // `drawn` is what the view holds: any change to the ledger redraws.
     let previous: ReturnType<typeof snapshot> = null
+    let drawn: string | undefined
     const refresh = async () => {
       const loaded = await load($)
+      const raw = JSON.stringify(loaded)
+      if (raw === drawn) return
+      drawn = raw
       const current = loaded ? snapshot(loaded.topic, loaded.ledger) : null
-      if (JSON.stringify(current) === JSON.stringify(previous)) return
       const results = changedStatuses(previous, current)
       for (const text of results) $.ui.toast(text)
       // The toast is brief and in the corner; the status line keeps the latest result by the prompt.
