@@ -1,17 +1,16 @@
 import { parseTeachEvent } from "./mastery-record.mjs";
 import { validateTeachEvent } from "./validate-teach-event.mjs";
-import { readTopicLedger, setProposedPlan, slugify, writeTopicLedger } from "../../scripts/mastery.mjs";
+import { storeProposedPlan } from "../../scripts/propose-plan.mjs";
 
-// The plan question blocks until the learner answers, and the ledger only learns the
-// plan on approval (mastery-record.mjs). Store the valid plan as proposed before the
-// question is shown, so `/map` can draw it while the learner decides.
+// The teach skill already stored the plan with scripts/propose-plan.mjs when it wrote
+// the plan message. The approval question carries the plan again, so store that one too:
+// if the learner asked for changes, the question holds the plan they are approving.
 export function handlePayload(payload) {
   if (payload?.hook_event_name !== "PreToolUse" || payload?.tool_name !== "AskUserQuestion") return;
   const event = parseTeachEvent(payload.tool_input?.metadata?.source);
   if (event?.kind !== "plan") return;
   if (validateTeachEvent(event, payload.tool_input?.questions).length > 0) return;
-  const topic = slugify(event.topic);
-  writeTopicLedger(topic, setProposedPlan(readTopicLedger(topic), event.plan));
+  storeProposedPlan(event.topic, event.plan);
 }
 
 async function main() {
