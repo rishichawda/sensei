@@ -3,7 +3,7 @@ import type { Register } from 'claude-code'
 
 import type { MapView } from '../../types'
 import { displayName } from '../vault/graph.mjs'
-import { bandLine, changedStatuses, glyph, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
+import { bandLine, changedStatuses, chipLabel, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
 
 const PANE = 'map'
 const view = atom({ plugin: 'sensei', key: 'view' } as const, { topic: null, ledger: null, selected: null } as MapView)
@@ -108,7 +108,7 @@ export const register: Register = on => {
             {row.map(id => (
               <Button
                 key={`node:${id}`}
-                label={`${glyph(ledger, id)} ${displayName(id)}`}
+                label={chipLabel(ledger, id)}
                 variant={id === v.selected ? 'primary' : 'secondary'}
                 onPress={() => update($, view, s => ({ ...s, selected: id }))}
               />

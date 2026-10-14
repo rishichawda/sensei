@@ -57,7 +57,7 @@ describe('map pane', () => {
       const ui = await $.ui.mount({ plugin: 'sensei', surface, component: 'Pane', requestId: 'map', props: PANE })
 
       expect(await ui.find({ type: 'Button', key: 'node:ip-routing' })).toBeDefined()
-      expect(await ui.find({ type: 'Button', key: 'node:delegation' })).toBeDefined()
+      expect(await ui.find({ type: 'Button', key: 'node:delegation', text: '✗ delegation ← ip routing' })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: '1 of 3 passed' })).toBeDefined()
 
       await ui.press({ key: 'node:delegation' })

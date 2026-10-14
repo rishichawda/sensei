@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { layers, progress, glyph, bandLine, snapshot, changedStatuses, nodeDetail, proposedPlan } from "./map-layout.mjs";
+import { layers, progress, glyph, chipLabel, bandLine, snapshot, changedStatuses, nodeDetail, proposedPlan } from "./map-layout.mjs";
 
 const LEDGER = {
   version: 1,
@@ -59,6 +59,13 @@ test("bandLine per session state", () => {
   assert.deepEqual(bandLine(s({ status: "complete" })), { text: "All 3 steps passed", tone: "green", last: null });
   assert.equal(bandLine({ nodes: {}, session: null }), null);
   assert.equal(bandLine(null), null);
+});
+
+test("chipLabel shows the glyph, the name and what the step needs", () => {
+  assert.equal(chipLabel(LEDGER, "delegation"), "✗ delegation ← ip routing");
+  assert.equal(chipLabel(LEDGER, "ip-routing"), "✓ ip routing");
+  assert.equal(chipLabel({ ...LEDGER, nodes: {} }, "referrals"), "○ referrals ← delegation");
+  assert.equal(chipLabel(PROPOSED, "b"), "○ b ← a", "a proposed plan draws its prerequisites too");
 });
 
 test("snapshot and changedStatuses give a toast for a newly passed or failed node only", () => {

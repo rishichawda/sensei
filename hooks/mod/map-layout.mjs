@@ -56,6 +56,11 @@ export function glyph(ledger, id) {
   return GLYPHS[stateOf(ledger, id)];
 }
 
+export function chipLabel(ledger, id) {
+  const needs = prerequisitesOf(drawnPlan(ledger), id).map(displayName);
+  return `${glyph(ledger, id)} ${displayName(id)}${needs.length > 0 ? ` ← ${needs.join(", ")}` : ""}`;
+}
+
 // The step passed most recently. A batched check passes several at one instant, so a
 // tie goes to the later step in the plan.
 function lastPassed(ledger) {
