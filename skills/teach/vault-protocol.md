@@ -11,7 +11,7 @@ Sensei can save what the learner learns into their Obsidian vault. Two things ar
 3. Otherwise ask once with `AskUserQuestion`, tagged `metadata: {source: JSON.stringify({app: "sensei-teach", v: 1, kind: "other"})}`. Question: "Want your lessons saved as notes in an Obsidian vault?" If `problem` is present, use "Your vault folder can't be used (<problem>). Want to set it up again so your lessons are saved as notes?" instead. Options (3, no "I don't know"): "Set up my vault", "Not now", "Don't ask again".
    - "Not now": carry on; ask again in a later session.
    - "Don't ask again": run `node "<plugin-root>/scripts/vault.mjs" decline`.
-   - "Set up my vault": write one plain line asking for the full path of the vault folder and end your turn. When they reply with it, run `node "<plugin-root>/scripts/vault.mjs" setup "<path>"` and tell them in one plain sentence what it printed. If it says it could not save the setting, give them the instruction it printed, and carry on.
+   - "Set up my vault": ask once more with `AskUserQuestion`, tagged the same way. Question: "Full path of your vault folder? Choose Other and type it." Options (2): "Not now", "Don't ask again" (handle them as above). When the learner types a path under Other, run `node "<plugin-root>/scripts/vault.mjs" setup "<path>"` and tell them in one plain sentence what it printed. If it says it could not save the setting, give them the instruction it printed, and carry on.
 4. Then go on with `mastery-ledger-protocol.md` Section A.
 
 ## Section B — Save a digest of each explanation (Phase 3, before the check)
