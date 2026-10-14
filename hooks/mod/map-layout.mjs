@@ -77,19 +77,20 @@ function lastPassed(ledger) {
 const line = (text, tone, last = null) => ({ text, tone, last });
 
 // What the band above the prompt says, from the ledger alone, so it never shows a stale result.
+// The leading glyph follows the plan: ◌ planning, ◇ proposed, ◆ approved, ● in progress, ✗ retry, ✓ done.
 export function bandLine(ledger) {
   const session = ledger?.session;
   if (!session) return null;
   const { passed, total } = progress(ledger);
   const goal = session.goal ? ` · ${session.goal}` : "";
   const proposed = proposedPlan(ledger);
-  if (session.status === "intake" && proposed) return line(`Plan proposed · ${proposed.nodes.length} steps${goal}`);
-  if (session.status === "intake") return session.goal ? line(`Planning · ${session.goal}`) : null;
-  if (session.status === "planned") return line(`Plan ready · ${total} steps${goal}`);
-  if (session.status === "complete") return line(`All ${total} steps passed`, "green");
+  if (session.status === "intake" && proposed) return line(`◇ Plan proposed · ${proposed.nodes.length} steps${goal}`);
+  if (session.status === "intake") return session.goal ? line(`◌ Planning · ${session.goal}`) : null;
+  if (session.status === "planned") return line(`◆ Plan ready · ${total} steps${goal}`);
+  if (session.status === "complete") return line(`✓ All ${total} steps passed`, "green");
   if (session.status === "in-progress" && session.nextNodeId) {
     const retry = statusOf(ledger, session.nextNodeId) === "failed";
-    const step = `Step ${passed + 1} of ${total} · ${retry ? "Retry" : "In progress"}: ${displayName(session.nextNodeId)}`;
+    const step = `${retry ? "✗" : "●"} Step ${passed + 1} of ${total} · ${retry ? "Retry" : "In progress"}: ${displayName(session.nextNodeId)}`;
     return line(step, retry ? "red" : undefined, lastPassed(ledger));
   }
   return null;

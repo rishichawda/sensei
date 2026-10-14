@@ -110,7 +110,7 @@ describe('band', () => {
     const ui = await $.ui.mount({
       plugin: 'sensei', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false },
     })
-    const steps = await ui.findAll({ type: 'Text', text: 'Step 2 of 3 · Retry: delegation' })
+    const steps = await ui.findAll({ type: 'Text', text: '✗ Step 2 of 3 · Retry: delegation' })
     expect(steps.map(el => el.props.color)).toContain('red')
     expect(await ui.find({ type: 'Text', text: /previously passed: ip routing/ })).toBeDefined()
   })
@@ -130,7 +130,7 @@ describe('band follows the ledger', () => {
     next.session.nextNodeId = 'referrals'
     files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
     await clock.advance(1000)
-    expect(await ui.find({ type: 'Text', text: 'Step 3 of 3 · In progress: referrals' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Step 3 of 3 · In progress: referrals' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /previously passed: delegation/ })).toBeDefined()
   })
 })

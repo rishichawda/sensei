@@ -44,8 +44,8 @@ test("glyph: passed, failed, current, pending", () => {
 });
 
 test("bandLine describes the step in progress, a retry and the step passed last", () => {
-  assert.deepEqual(bandLine(LEDGER), { text: "Step 2 of 3 · Retry: delegation", tone: "red", last: "ip routing" });
-  assert.deepEqual(bandLine({ ...LEDGER, nodes: {} }), { text: "Step 1 of 3 · In progress: delegation", tone: undefined, last: null });
+  assert.deepEqual(bandLine(LEDGER), { text: "✗ Step 2 of 3 · Retry: delegation", tone: "red", last: "ip routing" });
+  assert.deepEqual(bandLine({ ...LEDGER, nodes: {} }), { text: "● Step 1 of 3 · In progress: delegation", tone: undefined, last: null });
   const batch = { ...LEDGER, nodes: { "ip-routing": { status: "passed", lastTaughtAt: "2026-10-10T05:00:00.000Z" }, delegation: { status: "passed", lastTaughtAt: "2026-10-10T05:00:00.000Z" } }, session: { ...LEDGER.session, nextNodeId: "referrals" } };
   assert.equal(bandLine(batch).last, "delegation", "a tie goes to the later step in the plan");
   const earlier = { ...batch, nodes: { ...batch.nodes, "ip-routing": { status: "passed", lastTaughtAt: "2026-10-10T06:00:00.000Z" } } };
@@ -54,9 +54,9 @@ test("bandLine describes the step in progress, a retry and the step passed last"
 
 test("bandLine per session state", () => {
   const s = (extra) => ({ ...LEDGER, session: { ...LEDGER.session, ...extra } });
-  assert.equal(bandLine(s({ status: "intake" })).text, "Planning · Understand DNS");
-  assert.equal(bandLine(s({ status: "planned" })).text, "Plan ready · 3 steps · Understand DNS");
-  assert.deepEqual(bandLine(s({ status: "complete" })), { text: "All 3 steps passed", tone: "green", last: null });
+  assert.equal(bandLine(s({ status: "intake" })).text, "◌ Planning · Understand DNS");
+  assert.equal(bandLine(s({ status: "planned" })).text, "◆ Plan ready · 3 steps · Understand DNS");
+  assert.deepEqual(bandLine(s({ status: "complete" })), { text: "✓ All 3 steps passed", tone: "green", last: null });
   assert.equal(bandLine({ nodes: {}, session: null }), null);
   assert.equal(bandLine(null), null);
 });
@@ -99,7 +99,7 @@ test("a proposed plan is drawn from the ledger but never counted as progress", (
   assert.equal(proposedPlan(LEDGER), null, "an approved plan is not a proposal");
   assert.equal(proposedPlan({ ...PROPOSED, session: { ...PROPOSED.session, proposedPlan: { nodes: "a" } } }), null);
   assert.deepEqual(progress(PROPOSED), { passed: 0, total: 0 });
-  assert.equal(bandLine(PROPOSED).text, "Plan proposed · 2 steps · Understand DNS");
+  assert.equal(bandLine(PROPOSED).text, "◇ Plan proposed · 2 steps · Understand DNS");
   assert.equal(nodeDetail(PROPOSED, "b").status, "proposed");
   assert.deepEqual(nodeDetail(PROPOSED, "b").prerequisites, ["a"]);
 });
