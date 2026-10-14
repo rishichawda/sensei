@@ -1,4 +1,5 @@
 import { normalizeStrand } from "../../scripts/mastery.mjs";
+import { isSlug } from "../vault/paths.mjs";
 
 const KINDS = ["probe", "goal", "node", "plan", "wrap", "other"];
 const ONE_QUESTION_KINDS = ["probe", "goal", "node", "plan", "wrap"];
@@ -108,7 +109,7 @@ function validateItems(event, qs, at, problems) {
   });
 }
 
-function validatePlan(plan, at, problems) {
+export function validatePlan(plan, at, problems) {
   if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
     problems.push(`${at}: plan must be an object with nodes and edges`);
     return;
@@ -122,6 +123,7 @@ function validatePlan(plan, at, problems) {
     for (const id of plan.nodes) {
       if (seen.has(id)) problems.push(`${at}: plan.nodes lists ${JSON.stringify(id)} more than once`);
       seen.add(id);
+      if (!isSlug(id)) problems.push(`${at}: plan.nodes holds ${JSON.stringify(id)}; use a lowercase-hyphenated ID such as ${JSON.stringify(id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "node-id")}`);
     }
   }
 

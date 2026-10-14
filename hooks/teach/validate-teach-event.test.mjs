@@ -83,6 +83,7 @@ const INVALID = [
   ["plan.nodes holds a non-string", { ...plan, plan: { nodes: ["a", 2], edges: [] } }, APPROVE, [/^plan tag: plan\.nodes must be a non-empty array of non-empty strings/]],
   ["plan.nodes holds an empty string", { ...plan, plan: { nodes: ["a", ""], edges: [] } }, APPROVE, [/^plan tag: plan\.nodes must be a non-empty array of non-empty strings/]],
   ["plan.nodes has a duplicate", { ...plan, plan: { nodes: ["a", "a"], edges: [] } }, APPROVE, [/^plan tag: plan\.nodes lists "a" more than once/]],
+  ["plan.nodes holds an id that is not a lowercase-hyphenated slug", { ...plan, plan: { nodes: ["a", "tcp_handshake"], edges: [] } }, APPROVE, [/^plan tag: plan\.nodes holds "tcp_handshake"; use a lowercase-hyphenated ID such as "tcp-handshake"/]],
   ["plan.edges missing", { ...plan, plan: { nodes: ["a"] } }, APPROVE, [/^plan tag: plan\.edges must be an array of \[from, to\] pairs/]],
   ["plan.edges entry is not a pair", { ...plan, plan: { nodes: ["a", "b"], edges: [["a", "b"], ["a"]] } }, APPROVE, [/^plan tag: plan\.edges\[1\] must be a \[from, to\] pair/]],
   ["plan.edges entry is not an array", { ...plan, plan: { nodes: ["a", "b"], edges: ["a-b"] } }, APPROVE, [/^plan tag: plan\.edges\[0\] must be a \[from, to\] pair/]],
