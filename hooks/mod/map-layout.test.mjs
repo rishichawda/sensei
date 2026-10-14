@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { layers, progress, glyph, bandText, snapshot, changedStatuses, nodeDetail, proposedPlan } from "./map-layout.mjs";
+import { layers, progress, glyph, bandLine, snapshot, changedStatuses, nodeDetail, proposedPlan } from "./map-layout.mjs";
 
 const LEDGER = {
   version: 1,
@@ -43,15 +43,22 @@ test("glyph: passed, failed, current, pending", () => {
   assert.equal(glyph(LEDGER, "referrals"), "○");
 });
 
-test("bandText per session state", () => {
-  assert.equal(bandText(LEDGER), "Step 2 of 3 · delegation · retry");
-  assert.equal(bandText({ ...LEDGER, nodes: {} }), "Step 1 of 3 · delegation · check pending");
+test("bandLine describes the step in progress, a retry and the step passed last", () => {
+  assert.deepEqual(bandLine(LEDGER), { text: "Step 2 of 3 · Retry: delegation", tone: "red", last: "ip routing" });
+  assert.deepEqual(bandLine({ ...LEDGER, nodes: {} }), { text: "Step 1 of 3 · In progress: delegation", tone: undefined, last: null });
+  const batch = { ...LEDGER, nodes: { "ip-routing": { status: "passed", lastTaughtAt: "2026-10-10T05:00:00.000Z" }, delegation: { status: "passed", lastTaughtAt: "2026-10-10T05:00:00.000Z" } }, session: { ...LEDGER.session, nextNodeId: "referrals" } };
+  assert.equal(bandLine(batch).last, "delegation", "a tie goes to the later step in the plan");
+  const earlier = { ...batch, nodes: { ...batch.nodes, "ip-routing": { status: "passed", lastTaughtAt: "2026-10-10T06:00:00.000Z" } } };
+  assert.equal(bandLine(earlier).last, "ip routing", "otherwise the step taught last");
+});
+
+test("bandLine per session state", () => {
   const s = (extra) => ({ ...LEDGER, session: { ...LEDGER.session, ...extra } });
-  assert.equal(bandText(s({ status: "intake" })), "Planning · Understand DNS");
-  assert.equal(bandText(s({ status: "planned" })), "Plan ready · 3 steps · Understand DNS");
-  assert.equal(bandText(s({ status: "complete" })), "All 3 steps passed");
-  assert.equal(bandText({ nodes: {}, session: null }), null);
-  assert.equal(bandText(null), null);
+  assert.equal(bandLine(s({ status: "intake" })).text, "Planning · Understand DNS");
+  assert.equal(bandLine(s({ status: "planned" })).text, "Plan ready · 3 steps · Understand DNS");
+  assert.deepEqual(bandLine(s({ status: "complete" })), { text: "All 3 steps passed", tone: "green", last: null });
+  assert.equal(bandLine({ nodes: {}, session: null }), null);
+  assert.equal(bandLine(null), null);
 });
 
 test("snapshot and changedStatuses give a toast for a newly passed or failed node only", () => {
@@ -85,7 +92,7 @@ test("a proposed plan is drawn from the ledger but never counted as progress", (
   assert.equal(proposedPlan(LEDGER), null, "an approved plan is not a proposal");
   assert.equal(proposedPlan({ ...PROPOSED, session: { ...PROPOSED.session, proposedPlan: { nodes: "a" } } }), null);
   assert.deepEqual(progress(PROPOSED), { passed: 0, total: 0 });
-  assert.equal(bandText(PROPOSED), "Plan proposed · 2 steps · Understand DNS");
+  assert.equal(bandLine(PROPOSED).text, "Plan proposed · 2 steps · Understand DNS");
   assert.equal(nodeDetail(PROPOSED, "b").status, "proposed");
   assert.deepEqual(nodeDetail(PROPOSED, "b").prerequisites, ["a"]);
 });

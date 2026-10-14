@@ -56,19 +56,36 @@ export function glyph(ledger, id) {
   return GLYPHS[stateOf(ledger, id)];
 }
 
-export function bandText(ledger) {
+// The step passed most recently. A batched check passes several at one instant, so a
+// tie goes to the later step in the plan.
+function lastPassed(ledger) {
+  let best = null;
+  let bestAt = "";
+  for (const id of plan(ledger)?.nodes ?? []) {
+    if (statusOf(ledger, id) !== "passed") continue;
+    const at = ledger.nodes[id].lastTaughtAt ?? "";
+    if (best === null || at >= bestAt) [best, bestAt] = [id, at];
+  }
+  return best === null ? null : displayName(best);
+}
+
+const line = (text, tone, last = null) => ({ text, tone, last });
+
+// What the band above the prompt says, from the ledger alone, so it never shows a stale result.
+export function bandLine(ledger) {
   const session = ledger?.session;
   if (!session) return null;
   const { passed, total } = progress(ledger);
   const goal = session.goal ? ` · ${session.goal}` : "";
   const proposed = proposedPlan(ledger);
-  if (session.status === "intake" && proposed) return `Plan proposed · ${proposed.nodes.length} steps${goal}`;
-  if (session.status === "intake") return session.goal ? `Planning · ${session.goal}` : null;
-  if (session.status === "planned") return `Plan ready · ${total} steps${goal}`;
-  if (session.status === "complete") return `All ${total} steps passed`;
+  if (session.status === "intake" && proposed) return line(`Plan proposed · ${proposed.nodes.length} steps${goal}`);
+  if (session.status === "intake") return session.goal ? line(`Planning · ${session.goal}`) : null;
+  if (session.status === "planned") return line(`Plan ready · ${total} steps${goal}`);
+  if (session.status === "complete") return line(`All ${total} steps passed`, "green");
   if (session.status === "in-progress" && session.nextNodeId) {
-    const state = statusOf(ledger, session.nextNodeId) === "failed" ? "retry" : "check pending";
-    return `Step ${passed + 1} of ${total} · ${displayName(session.nextNodeId)} · ${state}`;
+    const retry = statusOf(ledger, session.nextNodeId) === "failed";
+    const step = `Step ${passed + 1} of ${total} · ${retry ? "Retry" : "In progress"}: ${displayName(session.nextNodeId)}`;
+    return line(step, retry ? "red" : undefined, lastPassed(ledger));
   }
   return null;
 }

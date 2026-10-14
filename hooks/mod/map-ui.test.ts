@@ -24,7 +24,7 @@ const SESSION = 'test-session'
 
 // The engine's file system, session id, environment and clock are what the plugin
 // reads; the test stands in for each beneath the plugin.
-function world(on: any, files: Record<string, string>, toasts: string[] = [], statuses: (string | undefined)[] = []) {
+function world(on: any, files: Record<string, string>, toasts: string[] = []) {
   mock.env(on, { CLAUDE_CONFIG_DIR: CONFIG })
   const clock = mock.clock(on)
   on('session.id', () => ({ value: SESSION }))
@@ -36,10 +36,6 @@ function world(on: any, files: Record<string, string>, toasts: string[] = [], st
   on('command.register', (_$: any, e: any) => ({ value: { command: e.name } }))
   on('ui.toast', (_$: any, e: any) => {
     toasts.push(e.text)
-    return { value: undefined }
-  })
-  on('ui.status', (_$: any, e: any) => {
-    statuses.push(e.text)
     return { value: undefined }
   })
   return clock
@@ -114,7 +110,28 @@ describe('band', () => {
     const ui = await $.ui.mount({
       plugin: 'sensei', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false },
     })
-    expect(await ui.find({ type: 'Text', text: /Step 2 of 3 · delegation · retry/ })).toBeDefined()
+    const steps = await ui.findAll({ type: 'Text', text: 'Step 2 of 3 · Retry: delegation' })
+    expect(steps.map(el => el.props.color)).toContain('red')
+    expect(await ui.find({ type: 'Text', text: /previously passed: ip routing/ })).toBeDefined()
+  })
+})
+
+describe('band follows the ledger', () => {
+  test('moves from the old result to the new one when a later check changes the ledger', async ($, on) => {
+    const files = { ...LESSON }
+    const clock = world(on, files)
+    await $.session.start({ ...START, surface: 'terminal' })
+    const ui = await $.ui.mount({
+      plugin: 'sensei', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false },
+    })
+    const next = structuredClone(LEDGER)
+    next.nodes.delegation.status = 'passed'
+    next.nodes.delegation.lastTaughtAt = '2026-10-10T06:00:00.000Z'
+    next.session.nextNodeId = 'referrals'
+    files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
+    await clock.advance(1000)
+    expect(await ui.find({ type: 'Text', text: 'Step 3 of 3 · In progress: referrals' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /previously passed: delegation/ })).toBeDefined()
   })
 })
 
@@ -134,24 +151,6 @@ describe('toasts', () => {
 
     await clock.advance(3000)
     expect(toasts).toEqual(['✓ delegation'])
-  })
-
-  test('pins the latest result on the status line beside the toast, and clears it with the lesson', async ($, on) => {
-    const toasts: string[] = []
-    const statuses: (string | undefined)[] = []
-    const files = { ...LESSON }
-    const clock = world(on, files, toasts, statuses)
-    await $.session.start({ ...START, surface: 'terminal' })
-
-    const next = structuredClone(LEDGER)
-    next.nodes.delegation.status = 'passed'
-    files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
-    await clock.advance(1000)
-    expect(statuses).toEqual(['✓ delegation'])
-
-    delete files[`${CONFIG}/sensei/active/${SESSION}.json`]
-    await clock.advance(1000)
-    expect(statuses).toEqual(['✓ delegation', undefined])
   })
 })
 

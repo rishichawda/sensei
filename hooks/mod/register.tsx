@@ -3,7 +3,7 @@ import type { Register } from 'claude-code'
 
 import type { MapView } from '../../types'
 import { displayName } from '../vault/graph.mjs'
-import { bandText, changedStatuses, glyph, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
+import { bandLine, changedStatuses, glyph, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
 
 const PANE = 'map'
 const view = atom({ plugin: 'sensei', key: 'view' } as const, { topic: null, ledger: null, selected: null } as MapView)
@@ -49,11 +49,7 @@ export const register: Register = on => {
       if (raw === drawn) return
       drawn = raw
       const current = loaded ? snapshot(loaded.topic, loaded.ledger) : null
-      const results = changedStatuses(previous, current)
-      for (const text of results) $.ui.toast(text)
-      // The toast is brief and in the corner; the status line keeps the latest result by the prompt.
-      if (results.length > 0) $.ui.status(results[results.length - 1])
-      else if (!current) $.ui.status(undefined)
+      for (const text of changedStatuses(previous, current)) $.ui.toast(text)
       previous = current
       await update($, view, v => ({
         topic: loaded?.topic ?? null,
@@ -74,10 +70,15 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const v = await read($, view)
-    const text = bandText(v.ledger)
-    if (!text) return next(e)
+    const band = bandLine(v.ledger)
+    if (!band) return next(e)
     const { Text } = $.ui.resolve(e)
-    return <Text dimColor>{`${text}  ·  /map`}</Text>
+    return (
+      <Text>
+        <Text color={band.tone}>{band.text}</Text>
+        <Text dimColor>{`${band.last ? `  ·  previously passed: ${band.last}` : ''}  ·  /map`}</Text>
+      </Text>
+    )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
