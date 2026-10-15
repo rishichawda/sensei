@@ -7,10 +7,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveVaultPath, writeActive, activePath } from "./state.mjs";
 
-const SCRIPT = fileURLToPath(new URL("./session-start.mjs", import.meta.url));
+const SCRIPT = fileURLToPath(new URL("./sync-state.mjs", import.meta.url));
 const run = (env) => execFileSync("node", [SCRIPT], { input: "{}", env: { ...process.env, ...env } });
 
-test("session start copies the vault option to the saved file and removes it when the option is cleared", () => {
+test("sync copies the vault option to the saved file and removes it when the option is cleared", () => {
   const env = { CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), "ss-")) };
   run({ ...env, CLAUDE_PLUGIN_OPTION_VAULT_PATH: "/my/vault" });
   assert.equal(resolveVaultPath(env), "/my/vault");
@@ -18,7 +18,7 @@ test("session start copies the vault option to the saved file and removes it whe
   assert.equal(resolveVaultPath(env), null);
 });
 
-test("session start prunes active files older than seven days", () => {
+test("sync prunes active files older than seven days", () => {
   const env = { CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), "ss-")) };
   writeActive("old", "dns", env);
   const old = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);

@@ -29,13 +29,14 @@ test("no hook command references the removed md-log hooks", () => {
   assert.deepEqual(commands.filter((c) => /md-log/.test(c)), []);
 });
 
-test("the vault hooks are registered: sync on SessionStart, record after every AskUserQuestion result", () => {
+test("the vault hooks are registered: sync at SessionStart and on every prompt, record after every AskUserQuestion result", () => {
   const registered = (event, matcher, script) =>
     (hooksJson.hooks[event] ?? [])
       .filter((entry) => entry.matcher === matcher)
       .flatMap((entry) => entry.hooks.map((h) => h.command))
       .some((c) => c.includes(script));
-  assert.equal(registered("SessionStart", undefined, "hooks/vault/session-start.mjs"), true);
+  assert.equal(registered("SessionStart", undefined, "hooks/vault/sync-state.mjs"), true);
+  assert.equal(registered("UserPromptSubmit", undefined, "hooks/vault/sync-state.mjs"), true);
   assert.equal(registered("PostToolUse", "AskUserQuestion", "hooks/vault/record-check.mjs"), true);
 });
 
