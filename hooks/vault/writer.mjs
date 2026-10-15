@@ -34,6 +34,8 @@ function appendToNote({ env, topic, node, sessionId, now, requires, build }) {
     const existing = existsSync(file) ? readFileSync(file, "utf8") : null;
     const base = existing ?? "";
     let out = "";
+    // A learner may have typed at the end of the note in Obsidian: never join their last line.
+    if (base !== "" && !base.endsWith("\n")) out += "\n";
     if (existing === null) out += newNoteText({ topic, node, requires });
     if (lastSessionId(base) !== sessionId) out += sessionHeader(sessionId, now);
     out += build(base);

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { recordCheck, recordDigest, writeMap } from "./writer.mjs";
 import { debugLogPath } from "./state.mjs";
+import { hasCard } from "./note.mjs";
 
 function setup() {
   const config = mkdtempSync(join(tmpdir(), "vault-config-"));
@@ -112,4 +113,17 @@ test("writeMap refuses to overwrite a _map.md the user made their own", () => {
   assert.equal(writeMap({ env, topic: "dns", goal: "g", plan: { nodes: [], edges: [] } }), false);
   assert.equal(readFileSync(file, "utf8"), "my own notes\n");
   assert.ok(readFileSync(debugLogPath(env), "utf8").includes("not sensei-owned"));
+});
+
+test("an append to a note whose last line has no newline starts on a new line and keeps the earlier bytes", () => {
+  const { vault, env } = setup();
+  recordDigest({ ...base, env, kind: "explained", digest: "Short digest." });
+  const file = noteOf(vault, "dns", "referrals");
+  writeFileSync(file, readFileSync(file, "utf8") + "my own thought", "utf8"); // typed in Obsidian, no final newline
+  const before = readFileSync(file, "utf8");
+  recordCheck({ ...base, env, question: "Q1?", answer: "A1", picked: "A1", result: "passed" });
+  const after = readFileSync(file, "utf8");
+  assert.ok(after.startsWith(before));
+  assert.ok(after.includes("my own thought\n\nQ1?\n?\nA1\n"));
+  assert.equal(hasCard(after, "Q1?"), true);
 });
