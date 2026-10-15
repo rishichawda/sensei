@@ -197,3 +197,17 @@ test("items are not allowed on goal, plan, wrap or other tags", () => {
     assert.match(validateTeachEvent({ ...event, items: [{}] }, qs).join("; "), /items is only for/);
   }
 });
+
+test("card: a node tag or item with a question and an answer is valid", () => {
+  const card = { q: "What damages a lens coating?", a: "Heat and harsh chemicals" };
+  assert.deepEqual(validateTeachEvent({ ...node, card }, ABC), []);
+  assert.deepEqual(validateTeachEvent({ ...nodeItems, items: nodeItems.items.map((item) => ({ ...item, card })) }, TWO), []);
+});
+
+test("card: a malformed card is denied, on the tag and on an item", () => {
+  for (const card of ["text", { q: "Q?" }, { q: "", a: "A" }, { q: "Q?", a: 3 }, [], null]) {
+    assert.match(validateTeachEvent({ ...node, card }, ABC).join(";"), /card must be an object/);
+  }
+  const badItem = { ...nodeItems, items: [{ ...nodeItems.items[0], card: { q: "Q?" } }, nodeItems.items[1]] };
+  assert.match(validateTeachEvent(badItem, TWO).join(";"), /items\[0\]: card must be an object/);
+});

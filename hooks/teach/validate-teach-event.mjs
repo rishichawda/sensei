@@ -79,6 +79,9 @@ function validateQuestionFields(kind, ev, question, hasQuestions, at, problems) 
   if (kind === "node") {
     if (!isText(ev.node)) problems.push(`${at}: node must be a non-empty string`);
     if (ev.recordAs !== "graded") problems.push(`${at}: recordAs must be "graded"`);
+    if (ev.card !== undefined && !(ev.card && isText(ev.card.q) && isText(ev.card.a))) {
+      problems.push(`${at}: card must be an object with a non-empty string q (the question) and a (the answer)`);
+    }
   }
   requireLabelFor(ev, "correct", question, hasQuestions, at, problems);
   if (kind === "probe" && ev.strand !== undefined && normalizeStrand(ev.strand) === undefined) {

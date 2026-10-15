@@ -49,11 +49,11 @@ export function handlePayload(payload, env = process.env, now = new Date()) {
       logVaultError(`invalid node ${JSON.stringify(ev.node)} in a graded check; nothing written`, env);
       continue;
     }
-    recordCheck({
-      env, topic, node: ev.node, sessionId, now,
-      requires: prerequisitesOf(plan, ev.node),
-      question: question.question, answer: ev.correct, picked, result, options: labels.filter((l) => typeof l === "string"),
-    });
+    // The model may write a free-recall card for a vault note; without one the card is the quiz as asked.
+    const card = ev.card
+      ? { question: ev.card.q, answer: ev.card.a, options: [] }
+      : { question: question.question, answer: ev.correct, options: labels.filter((l) => typeof l === "string") };
+    recordCheck({ env, topic, node: ev.node, sessionId, now, requires: prerequisitesOf(plan, ev.node), picked, result, ...card });
   }
 }
 

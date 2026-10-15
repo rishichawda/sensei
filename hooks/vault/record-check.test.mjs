@@ -163,3 +163,18 @@ test("an untagged AskUserQuestion, a non-AskUserQuestion payload and bad JSON al
   assert.doesNotThrow(() => execFileSync("node", [SCRIPT], { input: "not json", env: { ...process.env, ...env } }));
   assert.equal(existsSync(join(vault, "sensei")), false);
 });
+
+test("a card on the tag item replaces the question and options, and a re-ask reuses it", () => {
+  const { vault, env } = setup();
+  seedLedger(env);
+  const card = { q: "What does a referral hand back?", a: "The address of the next server to ask" };
+  const tag = { ...NODE_TAG, card };
+  run(payload({ tag, questions: [Q], answers: { [Q.question]: "Return the final answer" } }), env);
+  run(payload({ tag, questions: [Q], answers: { [Q.question]: "Ask the next server" } }), env);
+  const note = readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8");
+  assert.ok(note.includes("What does a referral hand back?\n?\nThe address of the next server to ask\n"));
+  assert.equal(note.split("\n?\n").length, 2, "one card");
+  assert.ok(!note.includes("- Return the final answer"));
+  assert.ok(note.includes('> ✗ Picked "Return the final answer". Correct answer above.'));
+  assert.ok(note.includes('> ✓ Answered correctly on "What does a referral hand back?".'));
+});

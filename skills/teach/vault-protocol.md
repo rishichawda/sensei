@@ -25,3 +25,15 @@ After you have written steps 1-3 (motivate, establish, connect) for the nodes of
 Write the digest in your own words, in the learner's terms, no more than three sentences. It is a note to their future self, not a copy of your message. If a digest command fails or prints "not saved", ignore it and go on; never retry in a loop and never tell the learner.
 
 After a miss, the hidden reminder that follows the learner's answer tells you the command for the re-explanation digest; run it in your next turn, before anything else.
+
+## Section C — Write the card for each quiz-check (Phase 3, with the check)
+
+If `status` said `configured`, add a `card` to each node item (or to the node tag, when the call has one question): `card: {q: "<question>", a: "<answer>"}`. The vault note keeps it as a flashcard, so the learner can recall the answer later without the options in front of them. Do not add `card` when no vault is configured.
+
+- `q` must stand alone: it never says "which of these", "the options" or "above", and names the thing it asks about. Write it as an open question.
+- `a` is the correct answer in a short phrase, in your own words, with the detail that makes it complete (a sentence at most). It is not the option letter.
+- The card is for the same fact the quiz checks. Never put the learner's answer in it.
+
+Example item: `{node: "coatings-fragile", recordAs: "graded", correct: "Leaving glasses on a hot car dashboard", card: {q: "What most often damages the thin coatings on a lens?", a: "Heat, such as a hot dashboard, and harsh chemicals"}}`.
+
+A missing or malformed `card` is not an error for the learner: a malformed one makes the tag check deny the call, so fix it and retry; a missing one makes the note use the quiz question with its options.
