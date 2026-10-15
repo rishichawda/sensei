@@ -8,6 +8,13 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 - Set `vault_path` and sensei saves each concept's explanation, quiz questions (as Obsidian Spaced Repetition flashcards), your answers and how mistakes were re-explained into your Obsidian vault, one append-only note per concept, with a map note per topic.
 - `scripts/vault.mjs` for the teach skill: save a digest, check the vault status, decline or set up a vault.
+- Each graded check becomes a flashcard in the concept note. The teach skill writes an open question and a short answer for it (`card` in the question tag), so the card works without the quiz options in front of you. When it writes none, the card is the question followed by its options.
+- `/map` opens a pane with the approved plan, one chip per step with its status, what it needs and what it unlocks. A line above the prompt shows where you are in the lesson, and a toast reports each pass or miss. The plan is no longer drawn as a diagram in chat.
+- The vault question offers setup once, asks for the folder path with a question, and stops asking if you decline.
+
+### Changed
+
+- A vault folder set with `/plugin configure sensei` takes effect on your next message, not after a restart.
 
 ### Removed
 
