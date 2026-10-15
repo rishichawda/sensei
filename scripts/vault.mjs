@@ -69,7 +69,7 @@ function digest(flags) {
     console.log("no vault configured; nothing saved");
     return;
   }
-  const plan = readTopicLedger(topic).session?.dependencyMap ?? null;
+  const plan = readTopicLedger(topic, { quarantine: false }).session?.dependencyMap ?? null;
   const written = recordDigest({ topic, node, sessionId, requires: prerequisitesOf(plan, node), kind, digest: text.slice(0, DIGEST_MAX_CHARS) });
   console.log(written ? "saved" : "not saved; see vault-debug.log");
 }

@@ -37,13 +37,18 @@ function isPlainObject(value) {
 // window, so a hook writing "javascript" can never silently clobber a
 // concurrent write to "powershell-scripting" the way a single shared
 // mastery.json could.
-export function readTopicLedger(topicSlug) {
+//
+// A file that cannot be used is renamed to a `.bak` and the ledger starts empty. A caller
+// that only looks (the vault paths) passes `{ quarantine: false }` so it never moves a file
+// the grading hook is about to move itself.
+export function readTopicLedger(topicSlug, { quarantine = true } = {}) {
   const path = topicLedgerPath(topicSlug);
   if (!existsSync(path)) return emptyTopicLedger();
   let parsed;
   try {
     parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (err) {
+    if (!quarantine) return emptyTopicLedger();
     const backupPath = `${path}.corrupt-${Date.now()}-${process.pid}.bak`;
     renameSync(path, backupPath);
     console.error(`mastery.mjs: warning: could not parse ledger at ${path} (starting fresh; original preserved at ${backupPath}): ${err.message}`);
@@ -54,6 +59,7 @@ export function readTopicLedger(topicSlug) {
     return emptyTopicLedger();
   }
   if (parsed.version !== LEDGER_VERSION) {
+    if (!quarantine) return emptyTopicLedger();
     const backupPath = `${path}.corrupt-${Date.now()}-${process.pid}.bak`;
     renameSync(path, backupPath);
     console.error(`mastery.mjs: warning: ledger at ${path} has an incompatible version ${parsed.version} (starting fresh; original preserved at ${backupPath})`);

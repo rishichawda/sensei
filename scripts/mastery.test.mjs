@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import {
@@ -432,6 +432,20 @@ test("readTopicLedger warns to stderr and returns emptyTopicLedger() when the fi
     }
     assert.deepEqual(result, emptyTopicLedger());
     assert.match(stderrOutput, /could not parse ledger/);
+  });
+});
+
+test("readTopicLedger with quarantine off reads as empty and leaves a corrupt or incompatible file where it is", () => {
+  const configDir = freshConfigDir();
+  withConfigDir(configDir, () => {
+    const path = topicLedgerPath("javascript");
+    mkdirSync(dirname(path), { recursive: true });
+    for (const text of ["{ not valid json", JSON.stringify({ version: 99, nodes: {}, session: null })]) {
+      writeFileSync(path, text, "utf8");
+      assert.deepEqual(readTopicLedger("javascript", { quarantine: false }), emptyTopicLedger());
+      assert.equal(readFileSync(path, "utf8"), text);
+      assert.deepEqual(readdirSync(dirname(path)), ["javascript.json"]);
+    }
   });
 });
 

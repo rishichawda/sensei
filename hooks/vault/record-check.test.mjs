@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -177,4 +177,14 @@ test("a card on the tag item replaces the question and options, and a re-ask reu
   assert.ok(!note.includes("- Return the final answer"));
   assert.ok(note.includes('> ✗ Picked "Return the final answer". Correct answer above.'));
   assert.ok(note.includes('> ✓ Answered correctly on "What does a referral hand back?".'));
+});
+
+test("a corrupt ledger is left where it is: the vault hook reads it without renaming it", () => {
+  const { env, config } = setup();
+  seedLedger(env);
+  const path = join(config, "sensei", "ledgers", "dns.json");
+  writeFileSync(path, "{ not valid json", "utf8");
+  run(payload({ tag: NODE_TAG, questions: [Q], answers: { [Q.question]: "Ask the next server" } }), env);
+  assert.equal(readFileSync(path, "utf8"), "{ not valid json");
+  assert.deepEqual(readdirSync(join(config, "sensei", "ledgers")), ["dns.json"]);
 });

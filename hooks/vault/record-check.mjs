@@ -29,7 +29,7 @@ export function handlePayload(payload, env = process.env, now = new Date()) {
 
   if (event.kind === "plan") {
     if (questions[0] && firstAnswer === event.approve) {
-      const goal = readTopicLedger(topic).session?.goal ?? null;
+      const goal = readTopicLedger(topic, { quarantine: false }).session?.goal ?? null;
       writeMap({ env, topic, goal, plan: event.plan });
     }
     return;
@@ -37,7 +37,7 @@ export function handlePayload(payload, env = process.env, now = new Date()) {
 
   if (event.kind !== "node" || !isSessionId(sessionId)) return;
 
-  const plan = readTopicLedger(topic).session?.dependencyMap ?? null;
+  const plan = readTopicLedger(topic, { quarantine: false }).session?.dependencyMap ?? null;
   for (const { event: ev, question } of expandEvents(event, questions)) {
     if (ev.recordAs !== "graded") continue; // recordAs sits on each item in a batched tag
     const picked = answers?.[question.question];
