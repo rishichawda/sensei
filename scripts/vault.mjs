@@ -56,6 +56,10 @@ function readStdin() {
 }
 
 function digest(flags) {
+  if (!resolveVaultPath()) {
+    console.log("no vault configured; nothing saved");
+    return;
+  }
   const { node, kind } = flags;
   if (!flags.topic) fail("--topic is required");
   const topic = slugify(flags.topic); // the same slug the ledger and the record-check hook use
@@ -65,10 +69,6 @@ function digest(flags) {
   if (!isSessionId(sessionId)) fail("no session id: pass --session or run inside Claude Code");
   const text = readStdin().trim();
   if (text === "") fail("the digest text on stdin is empty");
-  if (!resolveVaultPath()) {
-    console.log("no vault configured; nothing saved");
-    return;
-  }
   const plan = readTopicLedger(topic, { quarantine: false }).session?.dependencyMap ?? null;
   const written = recordDigest({ topic, node, sessionId, requires: prerequisitesOf(plan, node), kind, digest: text.slice(0, DIGEST_MAX_CHARS) });
   console.log(written ? "saved" : "not saved; see vault-debug.log");

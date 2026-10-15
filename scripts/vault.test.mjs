@@ -66,6 +66,16 @@ test("digest with no vault prints a note and exits 0", () => {
   assert.match(result.stdout, /no vault configured/);
 });
 
+test("digest with no vault exits 0 even when its arguments are wrong", () => {
+  const { env } = setup();
+  const noVault = { ...env, CLAUDE_PLUGIN_OPTION_VAULT_PATH: "" };
+  for (const args of [["digest"], ["digest", "--topic", "dns", "--node", "A b", "--kind", "wrong"]]) {
+    const result = run(args, noVault, "");
+    assert.equal(result.status, 0, args.join(" "));
+    assert.match(result.stdout, /no vault configured/);
+  }
+});
+
 test("digest rejects a bad slug, kind, empty text or missing session", () => {
   const { env, vault } = setup();
   const ok = ["digest", "--topic", "dns", "--node", "referrals", "--kind", "explained"];
