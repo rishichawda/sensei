@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { layers, progress, glyph, chipLabel, bandLine, snapshot, changedStatuses, nodeDetail, proposedPlan } from "./map-layout.mjs";
+import { layers, progress, glyph, chipLabel, bandLine, snapshot, changedStatuses, nodeDetail, proposedPlan, goalOf } from "./map-layout.mjs";
 
 const LEDGER = {
   version: 1,
@@ -108,4 +108,20 @@ test("a proposed plan is drawn from the ledger but never counted as progress", (
   assert.deepEqual(progress(PROPOSED), { passed: 0, total: 0 });
     assert.equal(nodeDetail(PROPOSED, "b").status, "proposed");
   assert.deepEqual(nodeDetail(PROPOSED, "b").prerequisites, ["a"]);
+});
+
+// A hand-edited or corrupt ledger must not crash the mod's pane or band.
+test("a ledger with wrong-typed plan, edges or goal never throws and reads as empty", () => {
+  const bad = (session, nodes) => ({ version: 1, nodes: nodes ?? {}, session });
+  assert.deepEqual(progress(bad({ dependencyMap: { nodes: "abc", edges: [] } })), { passed: 0, total: 0 });
+  assert.deepEqual(progress(bad({ dependencyMap: "oops" })), { passed: 0, total: 0 });
+  assert.equal(proposedPlan(bad({ proposedPlan: { nodes: "abc" } })), null);
+  const detail = nodeDetail(bad({ dependencyMap: { nodes: ["a"], edges: "nope" } }), "a");
+  assert.deepEqual([detail.prerequisites, detail.dependents], [[], []]);
+  assert.equal(goalOf(bad({ goal: { text: "x" } })), null);
+  assert.equal(goalOf(bad({ goal: "" })), null);
+  assert.equal(goalOf(bad({ goal: "Learn DNS" })), "Learn DNS");
+  assert.equal(bandLine(bad({ status: "intake", goal: { text: "x" } })), null);
+  assert.equal(bandLine(bad({ status: "intake", proposedPlan: { nodes: ["a"], edges: [] }, goal: ["x"] })).detail, null);
+  assert.doesNotThrow(() => snapshot("t", bad({ status: 5 }, "not an object")));
 });

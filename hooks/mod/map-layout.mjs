@@ -2,16 +2,23 @@
 // plugin files, never a `node:` module.
 import { displayName, prerequisitesOf } from "../vault/graph.mjs";
 
-const plan = (ledger) => ledger?.session?.dependencyMap ?? null;
+// The ledger is a file the learner may have edited: a plan counts only when its nodes
+// are an array, and a goal only when it is text.
+const wellFormed = (candidate) => (Array.isArray(candidate?.nodes) ? candidate : null);
+const plan = (ledger) => wellFormed(ledger?.session?.dependencyMap);
 
 // A plan the learner has been shown but has not approved yet (set before approval,
-// removed by it). Only well-formed plans count.
+// removed by it).
 export function proposedPlan(ledger) {
-  const proposed = ledger?.session?.proposedPlan;
-  return Array.isArray(proposed?.nodes) ? proposed : null;
+  return wellFormed(ledger?.session?.proposedPlan);
 }
 
-const drawnPlan = (ledger) => plan(ledger) ?? proposedPlan(ledger);
+export function goalOf(ledger) {
+  const goal = ledger?.session?.goal;
+  return typeof goal === "string" && goal !== "" ? goal : null;
+}
+
+export const drawnPlan = (ledger) => plan(ledger) ?? proposedPlan(ledger);
 const statusOf = (ledger, id) => ledger?.nodes?.[id]?.status ?? null;
 
 // Row = longest prerequisite chain above the node. A cycle never crashes: the
@@ -86,8 +93,8 @@ export function bandLine(ledger) {
   if (!session) return null;
   const { passed, total } = progress(ledger);
   const proposed = proposedPlan(ledger);
-  if (session.status === "intake" && proposed) return line("◇", `Plan proposed · ${proposed.nodes.length} steps`, "yellow", { detail: session.goal });
-  if (session.status === "intake") return session.goal ? line("◌", "Planning", undefined, { detail: session.goal, animated: true }) : null;
+  if (session.status === "intake" && proposed) return line("◇", `Plan proposed · ${proposed.nodes.length} steps`, "yellow", { detail: goalOf(ledger) });
+  if (session.status === "intake") return goalOf(ledger) ? line("◌", "Planning", undefined, { detail: goalOf(ledger), animated: true }) : null;
   if (session.status === "complete") return line("✓", `All ${total} steps passed`, "green");
   if ((session.status === "planned" || session.status === "in-progress") && session.nextNodeId) {
     const retry = statusOf(ledger, session.nextNodeId) === "failed";
@@ -117,7 +124,7 @@ export function changedStatuses(previous, current) {
 
 export function nodeDetail(ledger, id) {
   const shown = drawnPlan(ledger);
-  const edges = shown?.edges ?? [];
+  const edges = Array.isArray(shown?.edges) ? shown.edges : [];
   const taught = ledger?.nodes?.[id]?.lastTaughtAt;
   return {
     name: displayName(id),

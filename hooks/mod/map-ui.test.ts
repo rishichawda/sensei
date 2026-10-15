@@ -103,6 +103,18 @@ describe('map pane', () => {
   })
 })
 
+describe('map pane with a corrupt ledger', () => {
+  test('draws without throwing when the goal is an object and the plan fields are the wrong type', async ($, on) => {
+    const corrupt = { nodes: {}, session: { goal: { text: 'x' }, status: 'in-progress', dependencyMap: { nodes: ['a'], edges: 'nope' } } }
+    world(on, { ...LESSON, [`${CONFIG}/sensei/ledgers/dns.json`]: JSON.stringify(corrupt) })
+    await $.session.start({ ...START, surface: 'terminal' })
+    const ui = await $.ui.mount({ plugin: 'sensei', surface: 'terminal', component: 'Pane', requestId: 'map', props: PANE })
+    expect(await ui.find({ type: 'Button', key: 'node:a' })).toBeDefined()
+    await ui.press({ key: 'node:a' })
+    expect(await ui.find({ type: 'Text', text: /Status:/ })).toBeDefined()
+  })
+})
+
 describe('band', () => {
   test('shows the step line while a lesson runs', async ($, on) => {
     world(on, LESSON)

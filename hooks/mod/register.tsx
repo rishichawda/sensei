@@ -3,7 +3,7 @@ import type { Register } from 'claude-code'
 
 import type { MapView } from '../../types'
 import { displayName } from '../vault/graph.mjs'
-import { bandLine, changedStatuses, chipLabel, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
+import { bandLine, changedStatuses, chipLabel, drawnPlan, goalOf, layers, nodeDetail, progress, proposedPlan, snapshot } from './map-layout.mjs'
 
 const PANE = 'map'
 const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
@@ -97,13 +97,12 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const v = await read($, view)
     const ledger = v.ledger as any
-    const proposed = proposedPlan(ledger)
-    const map = ledger?.session?.dependencyMap ?? proposed
-    if (!map || !Array.isArray(map.nodes) || map.nodes.length === 0) {
-      const goal = ledger?.session?.goal
+    const map = drawnPlan(ledger)
+    if (!map || map.nodes.length === 0) {
+      const goal = goalOf(ledger)
       return <Text dimColor>{goal ? `No plan yet · ${goal}. Claude shows one for you to approve first.` : 'No plan yet. Ask Claude to teach you something and it shows a plan for you to approve first.'}</Text>
     }
-    const isProposal = !ledger.session?.dependencyMap
+    const isProposal = map === proposedPlan(ledger)
     const { passed, total } = progress(ledger)
     const rows = layers(map.nodes, map.edges)
     const detail = v.selected ? nodeDetail(ledger, v.selected) : null
@@ -112,7 +111,7 @@ export const register: Register = on => {
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
           {isProposal && <Text bold>Proposed plan — not approved yet</Text>}
-          <Text bold>{ledger.session?.goal ?? displayName(v.topic ?? '')}</Text>
+          <Text bold>{goalOf(ledger) ?? displayName(v.topic ?? '')}</Text>
           <Text dimColor>{isProposal ? `${map.nodes.length} steps` : `${passed} of ${total} passed`}</Text>
         </Box>
         {rows.map((row, i) => (
