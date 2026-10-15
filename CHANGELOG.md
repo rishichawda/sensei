@@ -4,6 +4,8 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-15
+
 ### Added
 
 - Set `vault_path` and sensei saves each concept's explanation, quiz questions (as Obsidian Spaced Repetition flashcards), your answers and how mistakes were re-explained into your Obsidian vault, one append-only note per concept, with a map note per topic.
