@@ -4,6 +4,14 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Added
+
+- The plugin has an icon for its directory listing, and the README shows it in a centered header with the title, tagline and badges. ([ac0eb23](https://github.com/rishichawda/sensei/commit/ac0eb23ef493667e16aa400dcf759b818334cefb), [3e3026f](https://github.com/rishichawda/sensei/commit/3e3026fae7db25e9f83f80c16dff41bd1442fc72))
+
+### Changed
+
+- The README says what the hook that runs before a question does (it can only deny a call) and what the map pane's mod does. ([ac946ee](https://github.com/rishichawda/sensei/commit/ac946eeac6c1ff75ec58b9d9607ee1b9780e801f))
+
 ## [1.0.3] - 2026-10-17
 
 ### Changed
