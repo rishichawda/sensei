@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { createServer } from "node:http";
 import { mkdtempSync, existsSync, accessSync, constants, mkdirSync, rmSync, copyFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -117,4 +118,30 @@ test("render-mermaid.sh gives its own labeled error, not cd's generic one, when 
     () => execFileSync("bash", [SCRIPT, src, out], { stdio: "pipe" }),
     (err) => /output directory does not exist after symlink resolution/.test(err.stderr.toString())
   );
+});
+
+// A diagram's text is model-written, so a label can carry an <img> tag. Chrome would fetch
+// that URL, which sends whatever the URL holds to any host. The render browser gets no network.
+test("render-mermaid.sh does not let a diagram label make the browser request a URL", { skip: skipReason }, async () => {
+  const hits = [];
+  const server = createServer((req, res) => {
+    hits.push(req.url);
+    res.writeHead(200, { "content-type": "image/png" });
+    res.end();
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address();
+    const dir = mkdtempSync(join(tmpdir(), "render-mermaid-leak-"));
+    const src = join(dir, "leak.mmd");
+    writeFileSync(src, `flowchart TD\n  A["<img src='http://127.0.0.1:${port}/leak'> start"] --> B["end"]\n`);
+    const out = join(dir, "out.png");
+    await new Promise((resolve, reject) => {
+      execFile("bash", [SCRIPT, src, out], (err, stdout) => (err ? reject(err) : resolve(stdout)));
+    });
+    assert.ok(existsSync(out), "the diagram still renders");
+    assert.deepEqual(hits, [], "the browser must not request any URL named in a diagram");
+  } finally {
+    server.close();
+  }
 });

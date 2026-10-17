@@ -38,11 +38,16 @@ done
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
+# The diagram text is model-written, and Chrome fetches any URL a label names (for example an
+# <img src>), which would send data to any host. Send every request, loopback included, to a
+# proxy that is not there: the page is a local file and needs no network.
+NO_NETWORK='"--proxy-server=http://127.0.0.1:9", "--proxy-bypass-list=<-loopback>"'
+
 CONFIG="${WORKDIR}/puppeteer.json"
 if [ -n "$CHROME" ]; then
-  printf '{"executablePath": "%s", "args": ["--no-sandbox"]}' "$CHROME" > "$CONFIG"
+  printf '{"executablePath": "%s", "args": ["--no-sandbox", %s]}' "$CHROME" "$NO_NETWORK" > "$CONFIG"
 else
-  printf '{"args": ["--no-sandbox"]}' > "$CONFIG"
+  printf '{"args": ["--no-sandbox", %s]}' "$NO_NETWORK" > "$CONFIG"
 fi
 
 export PUPPETEER_SKIP_DOWNLOAD=true
