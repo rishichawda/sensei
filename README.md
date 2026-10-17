@@ -2,6 +2,10 @@
 
 Learn anything in Claude Code with a plan you approve of first and a check you pass at each step.
 
+[![CI](https://github.com/rishichawda/sensei/actions/workflows/ci.yml/badge.svg)](https://github.com/rishichawda/sensei/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/rishichawda/sensei)](https://github.com/rishichawda/sensei/releases)
+[![License](https://img.shields.io/github/license/rishichawda/sensei)](https://github.com/rishichawda/sensei/blob/main/LICENSE)
+
 <!-- Demo GIF goes here. -->
 
 <p align="center"><img src="assets/lesson-with-map.png" alt="A lesson in the terminal: the explanation on the left, the map pane on the right, and the step line above the prompt." width="64%"></p>
