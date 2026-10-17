@@ -63,31 +63,43 @@ test("releaseNotes returns only the body of the requested version", () => {
   assert.throws(() => releaseNotes(out, "9.9.9"), /no section for 9\.9\.9/);
 });
 
-test("release.mjs bumps plugin.json, rewrites the changelog and writes the notes file", () => {
+function releaseRoot(version = "0.1.0") {
   const root = mkdtempSync(join(tmpdir(), "release-test-"));
   mkdirSync(join(root, ".claude-plugin"));
-  const pluginText = '{\n  "name": "x",\n  "version": "0.1.0",\n  "keywords": ["a", "b"]\n}\n';
-  writeFileSync(join(root, ".claude-plugin", "plugin.json"), pluginText);
+  const files = {
+    plugin: '{\n  "name": "x",\n  "version": "' + version + '",\n  "keywords": ["a", "b"]\n}\n',
+    pkg: '{\n  "name": "@o/x",\n  "version": "' + version + '",\n  "dependencies": { "d": "^1.0.0" }\n}\n',
+    lock: JSON.stringify({ name: "@o/x", version, lockfileVersion: 3, packages: { "": { name: "@o/x", version, dependencies: { d: "^1.0.0" } }, "node_modules/d": { version: "1.0.0" } } }, null, 2) + "\n",
+  };
+  writeFileSync(join(root, ".claude-plugin", "plugin.json"), files.plugin);
+  writeFileSync(join(root, "package.json"), files.pkg);
+  writeFileSync(join(root, "package-lock.json"), files.lock);
+  return { root, files };
+}
+
+test("release.mjs bumps plugin.json, package.json and the lockfile, rewrites the changelog and writes the notes file", () => {
+  const { root, files } = releaseRoot();
   writeFileSync(join(root, "CHANGELOG.md"), CHANGELOG);
   const notes = join(root, "notes.md");
   const out = execFileSync("node", [SCRIPT, "minor", "--notes-file", notes], { cwd: root }).toString().trim();
   assert.equal(out, "0.2.0");
-  assert.equal(
-    readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8"),
-    pluginText.replace("0.1.0", "0.2.0"),
-  );
+  assert.equal(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8"), files.plugin.replace("0.1.0", "0.2.0"));
+  assert.equal(readFileSync(join(root, "package.json"), "utf8"), files.pkg.replace("0.1.0", "0.2.0"));
+  const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
+  assert.equal(lock.version, "0.2.0");
+  assert.equal(lock.packages[""].version, "0.2.0");
+  assert.equal(lock.packages["node_modules/d"].version, "1.0.0", "a dependency's version is not touched");
   assert.match(readFileSync(join(root, "CHANGELOG.md"), "utf8"), /## \[0\.2\.0\] - \d{4}-\d{2}-\d{2}/);
   assert.equal(readFileSync(notes, "utf8"), "- Added a thing.\n- Fixed a thing.\n");
 });
 
 test("release.mjs exits non-zero and leaves files untouched when Unreleased is empty", () => {
-  const root = mkdtempSync(join(tmpdir(), "release-test-"));
-  mkdirSync(join(root, ".claude-plugin"));
-  const pluginText = '{ "version": "0.1.0" }\n';
+  const { root, files } = releaseRoot();
   const changelog = "# Changelog\n\n## [Unreleased]\n\n## [0.1.0]\n\nx\n";
-  writeFileSync(join(root, ".claude-plugin", "plugin.json"), pluginText);
   writeFileSync(join(root, "CHANGELOG.md"), changelog);
   assert.throws(() => execFileSync("node", [SCRIPT, "patch"], { cwd: root, stdio: "pipe" }), /Unreleased section is empty/);
-  assert.equal(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8"), pluginText);
+  assert.equal(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8"), files.plugin);
+  assert.equal(readFileSync(join(root, "package.json"), "utf8"), files.pkg);
+  assert.equal(readFileSync(join(root, "package-lock.json"), "utf8"), files.lock);
   assert.equal(readFileSync(join(root, "CHANGELOG.md"), "utf8"), changelog);
 });

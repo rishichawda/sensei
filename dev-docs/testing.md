@@ -4,7 +4,7 @@ Four checks cover the repository.
 
 | Command | Covers |
 | --- | --- |
-| `npm test` | Every `*.test.mjs` file: the hooks in `hooks/teach/` and `hooks/vault/`, the scripts in `scripts/`, and the mod's layout code in `hooks/mod/`. |
+| `npm test` | Every `*.test.mjs` file: the hooks in `hooks/teach/` and `hooks/vault/`, the scripts in `scripts/`, the mod's layout code in `hooks/mod/`, and what the npm package contains (`scripts/package.test.mjs`). |
 | `claude plugin validate . --strict` | The marketplace manifest, `.claude-plugin/marketplace.json`. |
 | `claude plugin validate .claude-plugin/plugin.json --strict` | The plugin manifest, the skills' frontmatter and `hooks/hooks.json`. |
 | `claude plugin test .` | The map pane, the line above the prompt and the toasts, in `hooks/mod/map-ui.test.ts`. |

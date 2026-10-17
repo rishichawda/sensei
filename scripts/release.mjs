@@ -44,17 +44,25 @@ export function releaseNotes(changelog, version) {
   return changelog.slice(from, next === -1 ? changelog.length : next).trim();
 }
 
+const VERSION_FIELD = /("version":\s*")[^"]+(")/;
+
+// The plugin manifest, package.json and package-lock.json carry the same version: the
+// plugin is also published to npm, and the lockfile ships with that package.
 export function release(root, level, date) {
   const pluginPath = join(root, ".claude-plugin", "plugin.json");
+  const packagePath = join(root, "package.json");
+  const lockPath = join(root, "package-lock.json");
   const changelogPath = join(root, "CHANGELOG.md");
-  const plugin = JSON.parse(readFileSync(pluginPath, "utf8"));
-  const version = nextVersion(plugin.version, level);
+  const pluginText = readFileSync(pluginPath, "utf8");
+  const version = nextVersion(JSON.parse(pluginText).version, level);
   const changelog = promoteUnreleased(readFileSync(changelogPath, "utf8"), version, date);
-  const pluginText = readFileSync(pluginPath, "utf8").replace(
-    /("version":\s*")[^"]+(")/,
-    `$1${version}$2`,
-  );
-  writeFileSync(pluginPath, pluginText);
+  const packageText = readFileSync(packagePath, "utf8").replace(VERSION_FIELD, `$1${version}$2`);
+  const lock = JSON.parse(readFileSync(lockPath, "utf8"));
+  lock.version = version;
+  lock.packages[""].version = version;
+  writeFileSync(pluginPath, pluginText.replace(VERSION_FIELD, `$1${version}$2`));
+  writeFileSync(packagePath, packageText);
+  writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
   writeFileSync(changelogPath, changelog);
   return { version, notes: releaseNotes(changelog, version) };
 }

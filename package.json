@@ -1,8 +1,46 @@
 {
-  "name": "sensei",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@rishichawda/sensei",
+  "version": "1.0.0",
+  "description": "Learn anything in Claude Code with a plan you approve first and a check you pass at every step.",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-code-skills",
+    "learning",
+    "teaching",
+    "tutor",
+    "obsidian"
+  ],
+  "homepage": "https://github.com/rishichawda/sensei#readme",
+  "bugs": {
+    "url": "https://github.com/rishichawda/sensei/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rishichawda/sensei.git"
+  },
+  "license": "Apache-2.0",
+  "author": "rishichawda",
   "type": "module",
+  "files": [
+    ".claude-plugin",
+    "!.claude-plugin/types",
+    "agents",
+    "hooks",
+    "scripts",
+    "skills",
+    "types",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "npm-shrinkwrap.json",
+    "!**/*.test.*",
+    "!scripts/fixtures",
+    "!scripts/release.*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "node --test \"**/*.test.mjs\""
   },

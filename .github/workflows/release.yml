@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency: release
 
@@ -43,11 +44,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
+          base64 -w0 package-lock.json > "$RUNNER_TEMP/lock.b64"
           jq -n \
             --arg repo "$GITHUB_REPOSITORY" \
             --arg oid "$GITHUB_SHA" \
             --arg headline "Release $VERSION" \
             --arg plugin "$(base64 -w0 .claude-plugin/plugin.json)" \
+            --arg package "$(base64 -w0 package.json)" \
+            --rawfile lock "$RUNNER_TEMP/lock.b64" \
             --arg changelog "$(base64 -w0 CHANGELOG.md)" \
             '{
               query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
@@ -57,6 +61,8 @@ jobs:
                 expectedHeadOid: $oid,
                 fileChanges: { additions: [
                   { path: ".claude-plugin/plugin.json", contents: $plugin },
+                  { path: "package.json", contents: $package },
+                  { path: "package-lock.json", contents: $lock },
                   { path: "CHANGELOG.md", contents: $changelog }
                 ] }
               } }
@@ -74,3 +80,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OID: ${{ steps.commit.outputs.oid }}
         run: gh api "repos/$GITHUB_REPOSITORY/commits/$OID" --jq '.commit.verification | "verified=\(.verified) reason=\(.reason)"'
+      # Trusted publishing needs npm 11.5.1 or later. npm 12 neither packs nor installs from
+      # npm-shrinkwrap.json, so the publish stays on npm 11 to ship the lockfile that Claude
+      # Code's dependency install reads from an npm-sourced plugin.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Publish the package to npm
+        run: |
+          package=$(jq -r .name package.json)
+          if ! npm view "$package" name > /dev/null 2>&1; then
+            echo "::notice::$package is not on npm yet. The first publish is manual; later releases publish from here."
+            exit 0
+          fi
+          npm install --global npm@11
+          cp package-lock.json npm-shrinkwrap.json
+          npm publish --provenance --access public
