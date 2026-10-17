@@ -4,6 +4,8 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-10-17
+
 ### Changed
 
 - The debug log that records graded checks no longer holds the text of your questions, and it records a question's source tag only when the tag is sensei's own, so it keeps nothing from other plugins' questions. ([12cd2f9](https://github.com/rishichawda/sensei/commit/12cd2f92fe140cca836cf9a3eba06aa60e269d03), [483f7e4](https://github.com/rishichawda/sensei/commit/483f7e444b36f8430162b37a610903c5c4b0ef03))
