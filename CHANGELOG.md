@@ -4,6 +4,10 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+
+- The `teach` skill no longer offers to put a diagram on a hosted or shareable page, an option nothing in sensei implemented. Diagrams are saved in `viz/` on your machine, and the skill now says never to publish a diagram or any lesson content to a hosted page, a link, a paste or image host, or any other service. ([08f7065](https://github.com/rishichawda/sensei/commit/08f70659622abf6614bb1a0f474d75c1ac87ae8a))
+
 ## [1.0.6] - 2026-10-17
 
 ### Fixed
