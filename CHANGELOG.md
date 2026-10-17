@@ -4,6 +4,10 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+
+- The npm package now ships its lockfile, so a plugin installed from npm gets its npm packages and can draw diagrams; version 1.0.1 was packed without it. Releases stage the package on npm, and a maintainer approves each version before it goes live. ([cba1325](https://github.com/rishichawda/sensei/commit/cba132524f12e6ff14de950a9efdd68df7d4d832))
+
 ## [1.0.1] - 2026-10-17
 
 ### Added
