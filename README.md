@@ -46,7 +46,6 @@ Start a new session and ask Claude: *"Teach me how DNS resolution works"*.
 
 * Claude Code 2.1.281 or later. The map pane, the line above the prompt and the toasts need it.
 * Optional: [Obsidian](https://obsidian.md) and its Spaced Repetition plugin (for the vault notes and flashcards).
-* Optional: Chrome or Chromium on macOS to draw Mermaid diagrams as pictures in the chat.
 
 ## Why I built it
 
@@ -54,4 +53,4 @@ One weekend morning, coffee in hand at my desk, I came across a [YouTube video](
 
 ## Contributing and license
 
-See CONTRIBUTING.md and the code of conduct. Sensei is released under the Apache License 2.0.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md). Sensei is released under the [Apache License 2.0](LICENSE).
