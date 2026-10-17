@@ -21,7 +21,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
       - run: npm ci
       - run: npm test
-      - name: Validate plugin and marketplace manifests
+      - name: Validate the marketplace manifest
         run: npx --yes @anthropic-ai/claude-code plugin validate . --strict
+      - name: Validate the plugin manifest, its skills and hooks
+        run: npx --yes @anthropic-ai/claude-code plugin validate .claude-plugin/plugin.json --strict
       - name: Run the mod UI tests
         run: npx --yes @anthropic-ai/claude-code plugin test .

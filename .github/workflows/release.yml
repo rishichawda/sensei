@@ -35,8 +35,10 @@ jobs:
           version=$(node scripts/release.mjs "$BUMP" --notes-file "$RUNNER_TEMP/notes.md")
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - run: npm test
-      - name: Validate plugin and marketplace manifests
+      - name: Validate the marketplace manifest
         run: npx --yes @anthropic-ai/claude-code plugin validate . --strict
+      - name: Validate the plugin manifest, its skills and hooks
+        run: npx --yes @anthropic-ai/claude-code plugin validate .claude-plugin/plugin.json --strict
       - name: Commit the bump through the API so GitHub signs it
         id: commit
         env:
