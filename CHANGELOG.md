@@ -6,13 +6,13 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ### Changed
 
-- The map, the line above the prompt, the toasts, the vault map note and the concept notes name each step in plain words, not by an internal ID, and the topic folder reads as words ("camera lens cleaning"). Each note carries a one-line comment asking you not to change the line sensei finds it by. The plan now carries a short label for every step. A map chip shows only the label; selecting it shows "Builds on" and "Leads to" instead of "Needs" and "Unlocks". (ea8004a)
-- A note's record of a wrong pick names the quiz question and its right answer when the flashcard asks something else, so "Picked Photo B" is no longer cut off from the question it answered. (0916b56)
-- A round of questions that holds a miss on a step now records that step as missed, also when another question on the same step was answered right; before, the later answer won and the miss was hidden from the map, the band and the toast. (2a66aba)
-- A check that passes one step and misses another now shows one toast with both results; before, the second toast was never shown. (ac66e65)
-- The toast now also shows when you miss a step that had already been missed; it used to appear only when a step changed from one result to another. (28bdb60)
-- The toast counts questions, not steps: a round of one right and two wrong answers on a single step reads "✓ 1 correct · ✗ 2 to retry", where it used to read only "retry". The band and the map still show steps. (f5ac660)
-- The teach skill always writes the explanation as a message of its own before the first check of a lesson, also when you ask for short replies, and no longer uses its own working words in what you read. (694b64d)
+- The map, the line above the prompt, the toasts, the vault map note and the concept notes name each step in plain words, not by an internal ID, and the topic folder reads as words ("camera lens cleaning"). Each note carries a one-line comment asking you not to change the line sensei finds it by. The plan now carries a short label for every step. A map chip shows only the label; selecting it shows "Builds on" and "Leads to" instead of "Needs" and "Unlocks". ([ea8004a](https://github.com/rishichawda/sensei/commit/ea8004a2658149ccca47083b9b67ddf575b4052c))
+- A note's record of a wrong pick names the quiz question and its right answer when the flashcard asks something else, so "Picked Photo B" is no longer cut off from the question it answered. ([0916b56](https://github.com/rishichawda/sensei/commit/0916b565f1812d5a02a2666dcdc7cbdcb5d589c3))
+- A round of questions that holds a miss on a step now records that step as missed, also when another question on the same step was answered right; before, the later answer won and the miss was hidden from the map, the band and the toast. ([2a66aba](https://github.com/rishichawda/sensei/commit/2a66aba6e0108e4b3202a1be6fbf82176d4ac0ed))
+- A check that passes one step and misses another now shows one toast with both results; before, the second toast was never shown. ([ac66e65](https://github.com/rishichawda/sensei/commit/ac66e65b33c3967ef3eac819b777fd29c2549495))
+- The toast now also shows when you miss a step that had already been missed; it used to appear only when a step changed from one result to another. ([28bdb60](https://github.com/rishichawda/sensei/commit/28bdb602f3f4182a671e87849f975ec07c6260e4))
+- The toast counts questions, not steps: a round of one right and two wrong answers on a single step reads "✓ 1 correct · ✗ 2 to retry", where it used to read only "retry". The band and the map still show steps. ([f5ac660](https://github.com/rishichawda/sensei/commit/f5ac6604d0ea4cf9c50b6438021ffcfb03aa4d25))
+- The teach skill always writes the explanation as a message of its own before the first check of a lesson, also when you ask for short replies, and no longer uses its own working words in what you read. ([694b64d](https://github.com/rishichawda/sensei/commit/694b64d980c6554053682d125540f4d517956d98))
 
 ## [0.2.0] - 2026-10-15
 
