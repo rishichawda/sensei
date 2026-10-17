@@ -8,6 +8,9 @@
   "keywords": ["teaching", "learning", "pedagogy", "diagrams"],
   "homepage": "https://github.com/rishichawda/sensei",
   "repository": "https://github.com/rishichawda/sensei",
+  "documentationUrl": "https://github.com/rishichawda/sensei#readme",
+  "supportUrl": "https://github.com/rishichawda/sensei/issues",
+  "privacyPolicyUrl": "https://github.com/rishichawda/sensei/blob/main/PRIVACY.md",
   "types": "./types/index.d.ts",
   "userConfig": {
     "vault_path": {
