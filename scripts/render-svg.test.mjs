@@ -10,15 +10,7 @@ const FIXTURE = new URL("./fixtures/valid.svg", import.meta.url).pathname;
 const INVALID_FIXTURE = new URL("./fixtures/invalid.svg", import.meta.url).pathname;
 const FIXTURES_DIR = dirname(FIXTURE);
 
-function hasCmd(cmd) {
-  try {
-    execFileSync("bash", ["-c", `command -v ${cmd}`]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-const skipReason = hasCmd("rsvg-convert") || hasCmd("magick") ? false : "neither rsvg-convert nor magick installed";
+const skipReason = existsSync(new URL("../node_modules/@resvg/resvg-js", import.meta.url).pathname) ? false : "@resvg/resvg-js not installed (run npm install in sensei/)";
 
 function copyFixtureToTmp(fixturePath) {
   const dir = mkdtempSync(join(tmpdir(), "render-svg-src-"));
@@ -46,7 +38,7 @@ test("render-svg.sh fails cleanly when the source file doesn't exist", { skip: s
   assert.throws(() => execFileSync("bash", [SCRIPT, join(dir, "missing.svg"), out]));
 });
 
-test("render-svg.sh fails cleanly and leaves no output file when both tools reject the source", { skip: skipReason }, () => {
+test("render-svg.sh fails cleanly and leaves no output file when the renderer rejects the source", { skip: skipReason }, () => {
   const src = copyFixtureToTmp(INVALID_FIXTURE);
   const dir = mkdtempSync(join(tmpdir(), "render-svg-test-"));
   const out = join(dir, "out.png");

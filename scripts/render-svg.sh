@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# rsvg-convert commonly lives under MacPorts /opt/local/bin, magick under
-# /usr/local/bin or Homebrew's /opt/homebrew/bin — a thin inherited PATH from
-# the calling agent's Bash tool might not include these.
-export PATH="/opt/local/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
-
 if [ $# -ne 2 ]; then
   echo "Usage: render-svg.sh <src.svg> <out.png>" >&2
   exit 1
@@ -15,6 +10,7 @@ SRC="$1"
 OUT="$2"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 source "${SCRIPT_DIR}/lib/confine.sh"
 
@@ -33,34 +29,21 @@ elif command -v gtimeout >/dev/null 2>&1; then
   TIMEOUT_CMD="gtimeout 60"
 fi
 
-RSVG_ERR=""
-RSVG_CODE=127
-if command -v rsvg-convert >/dev/null 2>&1; then
-  set +e
-  RSVG_ERR=$($TIMEOUT_CMD rsvg-convert -z 2 "$SRC" -o "$OUT" 2>&1)
-  RSVG_CODE=$?
-  set -e
+if [ ! -d "${PLUGIN_ROOT}/node_modules/@resvg/resvg-js" ]; then
+  echo "render-svg.sh: @resvg/resvg-js not found — run 'npm install' in ${PLUGIN_ROOT}" >&2
+  exit 1
 fi
 
-if [ "$RSVG_CODE" -ne 0 ] || [ ! -f "$OUT" ]; then
-  MAGICK_ERR=""
-  MAGICK_CODE=127
-  if command -v magick >/dev/null 2>&1; then
-    set +e
-    MAGICK_ERR=$($TIMEOUT_CMD magick -density 192 -background white "$SRC" "$OUT" 2>&1)
-    MAGICK_CODE=$?
-    set -e
-  fi
+set +e
+RENDER_ERR=$($TIMEOUT_CMD node "${SCRIPT_DIR}/lib/svg-to-png.mjs" "$SRC" "$OUT" 2>&1)
+CODE=$?
+set -e
 
-  if [ "$MAGICK_CODE" -ne 0 ] || [ ! -f "$OUT" ]; then
-    rm -f "$OUT"
-    echo "SVG render FAILED (tried rsvg-convert then magick)." >&2
-    echo "--- rsvg-convert ---" >&2
-    echo "${RSVG_ERR:-not installed}" | tail -n 15 >&2
-    echo "--- magick ---" >&2
-    echo "${MAGICK_ERR:-not installed}" | tail -n 15 >&2
-    exit 1
-  fi
+if [ "$CODE" -ne 0 ] || [ ! -f "$OUT" ]; then
+  rm -f "$OUT"
+  echo "SVG render FAILED." >&2
+  echo "$RENDER_ERR" | tail -n 15 >&2
+  exit 1
 fi
 
 SIZE=$(wc -c < "$OUT" | tr -d ' ')

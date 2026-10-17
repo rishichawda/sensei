@@ -24,8 +24,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install rsvg-convert for the SVG render tests
-        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
       - run: npm ci
       - name: Bump the version and move the Unreleased changelog entries under it
         id: bump

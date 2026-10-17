@@ -71,4 +71,4 @@ Introduce the visual in a sentence, then let it carry the idea — don't narrate
 - PNG embed means **what the maker verified is pixel-identical to what the learner sees** — no re-render drift.
 - Unique filenames keep embed resolution unambiguous.
 
-> The makers render through this plugin's `scripts/` (Mermaid via bundled `@mermaid-js/mermaid-cli` + installed Chrome; SVG via `rsvg-convert`, fallback ImageMagick) — plain bash scripts invoked directly by the maker's own `Bash` tool, no custom protocol layer. You don't render anything yourself — you only brief the maker and embed the filename it returns.
+> The makers render through this plugin's `scripts/` (Mermaid via bundled `@mermaid-js/mermaid-cli` + installed Chrome; SVG via bundled `@resvg/resvg-js`) — plain bash scripts invoked directly by the maker's own `Bash` tool, no custom protocol layer. You don't render anything yourself — you only brief the maker and embed the filename it returns.

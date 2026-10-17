@@ -16,7 +16,7 @@ Four checks cover the repository.
 ## Tests that skip
 
 - `scripts/render-mermaid.test.mjs` skips when `node_modules/.bin/mmdc` is missing. `npm install` installs it.
-- `scripts/render-svg.test.mjs` skips when neither `rsvg-convert` nor `magick` is installed. CI installs `librsvg2-bin` for `rsvg-convert`.
+- `scripts/render-svg.test.mjs` skips when `node_modules/@resvg/resvg-js` is missing. `npm install` installs it.
 
 A skipped test is not a pass. Install the tool if your change touches rendering.
 
