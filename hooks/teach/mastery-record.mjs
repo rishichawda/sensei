@@ -182,7 +182,6 @@ async function main() {
     tagged: Boolean(event),
     topic: event?.topic,
     node: event?.node,
-    question: truncate(question?.question),
     sourceRaw: truncate(sourceRaw),
   });
   if (!event) return;
@@ -209,7 +208,7 @@ async function main() {
 
   if (!event.topic) {
     if (event.kind !== "other") {
-      appendDebugLine({ timestamp: new Date().toISOString(), diagnostic: `teach: "${event.kind}" event is missing its topic, nothing recorded`, question: truncate(question.question) });
+      appendDebugLine({ timestamp: new Date().toISOString(), diagnostic: `teach: "${event.kind}" event is missing its topic, nothing recorded` });
     }
     return;
   }
@@ -221,7 +220,7 @@ async function main() {
     const labels = Array.isArray(q.options) ? q.options.map((o) => o?.label) : [];
     const { ledger: updated, diagnostic } = applyTeachEvent(ledger, ev, answers?.[q.question], labels, new Date(), q.question);
     if (diagnostic) {
-      appendDebugLine({ timestamp: new Date().toISOString(), diagnostic, topic: ev.topic, node: ev.node, question: truncate(q.question) });
+      appendDebugLine({ timestamp: new Date().toISOString(), diagnostic, topic: ev.topic, node: ev.node });
     }
     ledger = updated;
   }

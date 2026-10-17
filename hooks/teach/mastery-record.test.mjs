@@ -302,7 +302,7 @@ test("main() writes each topic to its own file, never touching a sibling topic's
   });
 });
 
-test("main() logs the question text for an untagged call, so a 'tagged:false' line is actually diagnostic", () => {
+test("main() logs an untagged call as tagged:false and never writes the question text to the debug log", () => {
   const configDir = freshConfigDir();
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
   execFileSync(process.execPath, [SCRIPT], {
@@ -317,7 +317,8 @@ test("main() logs the question text for an untagged call, so a 'tagged:false' li
   const lines = readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").trim().split("\n");
   const entry = JSON.parse(lines[lines.length - 1]);
   assert.equal(entry.tagged, false);
-  assert.equal(entry.question, "What does $? mean?");
+  assert.equal("question" in entry, false);
+  assert.equal(readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").includes("What does $? mean?"), false);
 });
 
 test("main() logs the raw (truncated) metadata.source when present but not teach-tagged, so a near-miss is visible", () => {
