@@ -15,6 +15,7 @@ const LEDGER = {
     dependencyMap: {
       nodes: ['ip-routing', 'delegation', 'referrals'],
       edges: [['ip-routing', 'delegation'], ['delegation', 'referrals']],
+      labels: { 'ip-routing': 'How packets find a machine', delegation: 'Who answers for a domain', referrals: 'Following a referral' },
     },
   },
 }
@@ -57,12 +58,12 @@ describe('map pane', () => {
       const ui = await $.ui.mount({ plugin: 'sensei', surface, component: 'Pane', requestId: 'map', props: PANE })
 
       expect(await ui.find({ type: 'Button', key: 'node:ip-routing' })).toBeDefined()
-      expect(await ui.find({ type: 'Button', key: 'node:delegation', text: '✗ delegation ← ip routing' })).toBeDefined()
+      expect(await ui.find({ type: 'Button', key: 'node:delegation', text: '✗ Who answers for a domain' })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: '1 of 3 passed' })).toBeDefined()
 
       await ui.press({ key: 'node:delegation' })
-      expect(await ui.find({ type: 'Text', text: /Needs: ip routing/ })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: /Unlocks: referrals/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /Builds on: How packets find a machine/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /Leads to: Following a referral/ })).toBeDefined()
     })
   }
 
@@ -122,11 +123,11 @@ describe('band', () => {
     const ui = await $.ui.mount({
       plugin: 'sensei', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false },
     })
-    const steps = await ui.findAll({ type: 'Text', text: '✗ Step 2 of 3 · Retry: delegation' })
+    const steps = await ui.findAll({ type: 'Text', text: '✗ Step 2 of 3 · Retry: Who answers for a domain' })
     expect(steps.map(el => el.props.color)).toContain('red')
     const passed = await ui.findAll({ type: 'Text', text: /previously passed/ })
     expect(passed.map(el => el.props.color)).toContain('green')
-    expect(await ui.find({ type: 'Text', text: /previously passed: ip routing/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /previously passed: How packets find a machine/ })).toBeDefined()
   })
 })
 
@@ -171,8 +172,8 @@ describe('band follows the ledger', () => {
     next.session.nextNodeId = 'referrals'
     files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
     await clock.advance(1000)
-    expect(await ui.find({ type: 'Text', text: '● Step 3 of 3 · In progress: referrals' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /previously passed: delegation/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Step 3 of 3 · In progress: Following a referral' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /previously passed: Who answers for a domain/ })).toBeDefined()
   })
 })
 
@@ -188,11 +189,14 @@ describe('toasts', () => {
     next.nodes.delegation.status = 'passed'
     files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
     await clock.advance(1000)
-    expect(toasts).toEqual(['✓ delegation'])
+    expect(toasts).toEqual(['✓ Who answers for a domain'])
 
     await clock.advance(3000)
-    expect(toasts).toEqual(['✓ delegation'])
+    expect(toasts).toEqual(['✓ Who answers for a domain'])
   })
+
+
+
 })
 
 describe('refresh', () => {

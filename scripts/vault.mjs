@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { resolveVaultPath, isDeclined, setDeclined, saveVaultPath, isSessionId, logVaultError } from "../hooks/vault/state.mjs";
 import { isSlug } from "../hooks/vault/paths.mjs";
 import { recordDigest } from "../hooks/vault/writer.mjs";
-import { prerequisitesOf } from "../hooks/vault/graph.mjs";
+import { labelOf, prerequisitesOf } from "../hooks/vault/graph.mjs";
 import { readTopicLedger, slugify } from "./mastery.mjs";
 
 const DIGEST_MAX_CHARS = 2000;
@@ -70,7 +70,7 @@ function digest(flags) {
   const text = readStdin().trim();
   if (text === "") fail("the digest text on stdin is empty");
   const plan = readTopicLedger(topic, { quarantine: false }).session?.dependencyMap ?? null;
-  const written = recordDigest({ topic, node, sessionId, requires: prerequisitesOf(plan, node), kind, digest: text.slice(0, DIGEST_MAX_CHARS) });
+  const written = recordDigest({ topic, node, label: labelOf(plan, node), sessionId, requires: prerequisitesOf(plan, node).map((p) => labelOf(plan, p)), kind, digest: text.slice(0, DIGEST_MAX_CHARS) });
   console.log(written ? "saved" : "not saved; see vault-debug.log");
 }
 

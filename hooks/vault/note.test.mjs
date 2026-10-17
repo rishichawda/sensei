@@ -15,10 +15,10 @@ test("lastSessionId returns the last marker or null", () => {
 });
 
 test("newNoteText has frontmatter with wikilinks to prerequisites and the deck tag line", () => {
-  const text = newNoteText({ topic: "dns", node: "recursive-resolver", requires: ["referrals"] });
+  const text = newNoteText({ topic: "dns", node: "recursive-resolver", requires: ["Following a referral"] });
   assert.equal(
     text,
-    '---\ntopic: dns\nnode: recursive-resolver\nrequires: ["[[sensei/dns/referrals|referrals]]"]\n---\n#flashcards/dns/recursive-resolver\n',
+    '---\ntopic: dns\nnode: recursive-resolver\nrequires: ["[[sensei/dns/Following a referral|Following a referral]]"]\n---\n<!-- sensei: do not change the node line above or rename this folder; sensei finds this note by them. -->\n#flashcards/dns/recursive-resolver\n',
   );
   assert.match(newNoteText({ topic: "dns", node: "ip", requires: [] }), /requires: \[\]\n/);
 });

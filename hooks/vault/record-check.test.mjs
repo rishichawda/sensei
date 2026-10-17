@@ -9,7 +9,7 @@ import { activePath } from "./state.mjs";
 import { emptyTopicLedger, setSessionGoal, setSessionPlan, writeTopicLedger } from "../../scripts/mastery.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./record-check.mjs", import.meta.url));
-const PLAN = { nodes: ["delegation", "referrals"], edges: [["delegation", "referrals"]] };
+const PLAN = { nodes: ["delegation", "referrals"], edges: [["delegation", "referrals"]], labels: { delegation: "Who answers for a domain", referrals: "Following a referral" } };
 
 function setup({ withVault = true } = {}) {
   const config = mkdtempSync(join(tmpdir(), "rc-config-"));
@@ -50,8 +50,8 @@ test("a correct graded check writes the card, the attempt and the active file", 
   const { vault, env } = setup();
   seedLedger(env);
   run(payload({ tag: NODE_TAG, questions: [Q], answers: { [Q.question]: "Ask the next server" } }), env);
-  const note = readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8");
-  assert.ok(note.includes('requires: ["[[sensei/dns/delegation|delegation]]"]'));
+  const note = readFileSync(join(vault, "sensei", "dns", "Following a referral.md"), "utf8");
+  assert.ok(note.includes('requires: ["[[sensei/dns/Who answers for a domain|Who answers for a domain]]"]'));
   assert.ok(note.includes("What does a referral do?\n- Ask the next server\n- Return the final answer\n?\nAsk the next server\n"));
   assert.ok(note.includes("> ✓ Answered correctly."));
   assert.deepEqual(JSON.parse(readFileSync(activePath("sess-1", env), "utf8")), { topic: "dns" });
@@ -62,7 +62,7 @@ test("a wrong pick and an I don't know are recorded as they were chosen", () => 
   seedLedger(env);
   run(payload({ tag: NODE_TAG, questions: [Q], answers: { [Q.question]: "Return the final answer" } }), env);
   run(payload({ tag: NODE_TAG, questions: [Q], answers: { [Q.question]: "I don't know" } }), env);
-  const note = readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8");
+  const note = readFileSync(join(vault, "sensei", "dns", "Following a referral.md"), "utf8");
   assert.ok(note.includes('> ✗ Picked "Return the final answer". Correct answer above.'), "first pick: the card was just written");
   assert.ok(note.includes('> Said "I don\'t know" on "What does a referral do?".'), "second pick: the card already existed");
 });
@@ -71,14 +71,14 @@ test("free text typed under Other is recorded as the pick", () => {
   const { vault, env } = setup();
   seedLedger(env);
   run(payload({ tag: NODE_TAG, questions: [Q], answers: { [Q.question]: "it asks\nthe root again" } }), env);
-  assert.ok(readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8").includes('Picked "it asks the root again"'));
+  assert.ok(readFileSync(join(vault, "sensei", "dns", "Following a referral.md"), "utf8").includes('Picked "it asks the root again"'));
 });
 
 test("an unanswered question writes no note", () => {
   const { vault, env } = setup();
   seedLedger(env);
   run(payload({ tag: NODE_TAG, questions: [Q], answers: {} }), env);
-  assert.equal(existsSync(join(vault, "sensei", "dns", "referrals.md")), false);
+  assert.equal(existsSync(join(vault, "sensei", "dns", "Following a referral.md")), false);
 });
 
 test("a batched call writes one card per question", () => {
@@ -93,8 +93,8 @@ test("a batched call writes one card per question", () => {
     ],
   };
   run(payload({ tag, questions: [Q, Q2], answers: { [Q.question]: "Ask the next server", [Q2.question]: "Caches" } }), env);
-  assert.ok(existsSync(join(vault, "sensei", "dns", "referrals.md")));
-  assert.ok(readFileSync(join(vault, "sensei", "dns", "delegation.md"), "utf8").includes('Picked "Caches"'));
+  assert.ok(existsSync(join(vault, "sensei", "dns", "Following a referral.md")));
+  assert.ok(readFileSync(join(vault, "sensei", "dns", "Who answers for a domain.md"), "utf8").includes('Picked "Caches"'));
 });
 
 test("a batched call whose items carry recordAs (the real tag shape) writes a card per graded item and skips the others", () => {
@@ -109,8 +109,8 @@ test("a batched call whose items carry recordAs (the real tag shape) writes a ca
     ],
   };
   run(payload({ tag, questions: [Q, Q2], answers: { [Q.question]: "Ask the next server", [Q2.question]: "Hands a zone to another server" } }), env);
-  assert.ok(readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8").includes("> ✓ Answered correctly."));
-  assert.equal(existsSync(join(vault, "sensei", "dns", "delegation.md")), false);
+  assert.ok(readFileSync(join(vault, "sensei", "dns", "Following a referral.md"), "utf8").includes("> ✓ Answered correctly."));
+  assert.equal(existsSync(join(vault, "sensei", "dns", "Who answers for a domain.md")), false);
 });
 
 test("a node ID that is not a slug is skipped and logged, the other questions still write", () => {
@@ -171,7 +171,7 @@ test("a card on the tag item replaces the question and options, and a re-ask reu
   const tag = { ...NODE_TAG, card };
   run(payload({ tag, questions: [Q], answers: { [Q.question]: "Return the final answer" } }), env);
   run(payload({ tag, questions: [Q], answers: { [Q.question]: "Ask the next server" } }), env);
-  const note = readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8");
+  const note = readFileSync(join(vault, "sensei", "dns", "Following a referral.md"), "utf8");
   assert.ok(note.includes("What does a referral hand back?\n?\nThe address of the next server to ask\n"));
   assert.equal(note.split("\n?\n").length, 2, "one card");
   assert.ok(!note.includes("- Return the final answer"));

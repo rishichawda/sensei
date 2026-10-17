@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { handlePayload } from "./propose-plan.mjs";
 import { readTopicLedger } from "../../scripts/mastery.mjs";
 
-const PLAN = { nodes: ["a", "b"], edges: [["a", "b"]] };
+const PLAN = { nodes: ["a", "b"], edges: [["a", "b"]], labels: { a: "The first idea", b: "The second idea" } };
 
 function payload(tag, extra = {}) {
   return {

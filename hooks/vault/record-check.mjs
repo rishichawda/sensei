@@ -3,7 +3,7 @@ import { readTopicLedger, slugify } from "../../scripts/mastery.mjs";
 import { recordCheck, writeMap } from "./writer.mjs";
 import { writeActive, clearActive, isSessionId, logVaultError } from "./state.mjs";
 import { isSlug } from "./paths.mjs";
-import { prerequisitesOf } from "./graph.mjs";
+import { labelOf, prerequisitesOf } from "./graph.mjs";
 
 // Runs beside mastery-record.mjs on every AskUserQuestion result. It reuses that
 // file's parsing and grading so the vault can never disagree with the ledger, and
@@ -53,7 +53,7 @@ export function handlePayload(payload, env = process.env, now = new Date()) {
     const card = ev.card
       ? { question: ev.card.q, answer: ev.card.a, options: [] }
       : { question: question.question, answer: ev.correct, options: labels.filter((l) => typeof l === "string") };
-    recordCheck({ env, topic, node: ev.node, sessionId, now, requires: prerequisitesOf(plan, ev.node), picked, result, ...card });
+    recordCheck({ env, topic, node: ev.node, label: labelOf(plan, ev.node), sessionId, now, requires: prerequisitesOf(plan, ev.node).map((p) => labelOf(plan, p)), picked, result, ...card });
   }
 }
 

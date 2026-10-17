@@ -1,5 +1,5 @@
 import { normalizeStrand } from "../../scripts/mastery.mjs";
-import { isSlug } from "../vault/paths.mjs";
+import { isSlug, noteName } from "../vault/paths.mjs";
 
 const KINDS = ["probe", "goal", "node", "plan", "wrap", "other"];
 const ONE_QUESTION_KINDS = ["probe", "goal", "node", "plan", "wrap"];
@@ -127,6 +127,27 @@ export function validatePlan(plan, at, problems) {
       if (seen.has(id)) problems.push(`${at}: plan.nodes lists ${JSON.stringify(id)} more than once`);
       seen.add(id);
       if (!isSlug(id)) problems.push(`${at}: plan.nodes holds ${JSON.stringify(id)}; use a lowercase-hyphenated ID such as ${JSON.stringify(id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "node-id")}`);
+    }
+  }
+
+  if (nodesOk) {
+    const labels = plan.labels && typeof plan.labels === "object" && !Array.isArray(plan.labels) ? plan.labels : null;
+    const missing = plan.nodes.filter((id) => !isText(labels?.[id]));
+    if (missing.length > 0) {
+      problems.push(`${at}: plan.labels must give every node a plain-words name the learner will read; missing ${missing.map((id) => JSON.stringify(id)).join(", ")}`);
+    } else {
+      // Each label names a vault note, so it must make a usable, distinct file name.
+      const taken = new Map();
+      for (const id of new Set(plan.nodes)) {
+        const name = noteName(plan.labels[id]);
+        if (name === null) {
+          problems.push(`${at}: plan.labels[${JSON.stringify(id)}] ${JSON.stringify(plan.labels[id])} cannot name a note; write a short phrase in words`);
+        } else if (taken.has(name.toLowerCase())) {
+          problems.push(`${at}: plan.labels gives ${JSON.stringify(taken.get(name.toLowerCase()))} and ${JSON.stringify(id)} the same name; word each step's label differently`);
+        } else {
+          taken.set(name.toLowerCase(), id);
+        }
+      }
     }
   }
 

@@ -130,8 +130,8 @@ export const register: Register = on => {
           <Box flexDirection="column">
             <Text bold>{detail.name}</Text>
             <Text>{`Status: ${detail.status}${detail.taught ? ` · taught ${detail.taught}` : ''}`}</Text>
-            {detail.prerequisites.length > 0 && <Text>{`Needs: ${detail.prerequisites.join(', ')}`}</Text>}
-            {detail.dependents.length > 0 && <Text>{`Unlocks: ${detail.dependents.join(', ')}`}</Text>}
+            {detail.prerequisites.length > 0 && <Text>{`Builds on: ${detail.prerequisites.join(', ')}`}</Text>}
+            {detail.dependents.length > 0 && <Text>{`Leads to: ${detail.dependents.join(', ')}`}</Text>}
           </Box>
         )}
       </Box>

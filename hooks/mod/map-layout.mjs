@@ -1,6 +1,6 @@
 // Imported by the Claude Code mod, which has no Node: import only other plain
 // plugin files, never a `node:` module.
-import { displayName, prerequisitesOf } from "../vault/graph.mjs";
+import { labelOf, prerequisitesOf } from "../vault/graph.mjs";
 
 // The ledger is a file the learner may have edited: a plan counts only when its nodes
 // are an array, and a goal only when it is text.
@@ -64,8 +64,7 @@ export function glyph(ledger, id) {
 }
 
 export function chipLabel(ledger, id) {
-  const needs = prerequisitesOf(drawnPlan(ledger), id).map(displayName);
-  return `${glyph(ledger, id)} ${displayName(id)}${needs.length > 0 ? ` ← ${needs.join(", ")}` : ""}`;
+  return `${glyph(ledger, id)} ${labelOf(drawnPlan(ledger), id)}`;
 }
 
 // The step passed most recently. A batched check passes several at one instant, so a
@@ -78,7 +77,7 @@ function lastPassed(ledger) {
     const at = ledger.nodes[id].lastTaughtAt ?? "";
     if (best === null || at >= bestAt) [best, bestAt] = [id, at];
   }
-  return best === null ? null : displayName(best);
+  return best === null ? null : labelOf(plan(ledger), best);
 }
 
 const line = (glyph, head, tone, { detail = null, last = null, animated = false } = {}) => ({ glyph, head, tone, detail, last, animated });
@@ -98,7 +97,7 @@ export function bandLine(ledger) {
   if (session.status === "complete") return line("✓", `All ${total} steps passed`, "green");
   if ((session.status === "planned" || session.status === "in-progress") && session.nextNodeId) {
     const retry = statusOf(ledger, session.nextNodeId) === "failed";
-    const head = `Step ${passed + 1} of ${total} · ${retry ? "Retry" : "In progress"}: ${displayName(session.nextNodeId)}`;
+    const head = `Step ${passed + 1} of ${total} · ${retry ? "Retry" : "In progress"}: ${labelOf(plan(ledger), session.nextNodeId)}`;
     return line(retry ? "✗" : "●", head, retry ? "red" : "cyan", { last: lastPassed(ledger) });
   }
   return null;
@@ -107,8 +106,12 @@ export function bandLine(ledger) {
 export function snapshot(topic, ledger) {
   if (!ledger) return null;
   const statuses = {};
-  for (const [id, node] of Object.entries(ledger.nodes ?? {})) statuses[id] = node?.status ?? "";
-  return { topic, statuses, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
+  const names = {};
+  for (const [id, node] of Object.entries(ledger.nodes ?? {})) {
+    statuses[id] = node?.status ?? "";
+    names[id] = labelOf(drawnPlan(ledger), id);
+  }
+  return { topic, statuses, names, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
 }
 
 export function changedStatuses(previous, current) {
@@ -116,8 +119,8 @@ export function changedStatuses(previous, current) {
   if (!previous || !current || previous.topic !== current.topic) return toasts;
   for (const [id, status] of Object.entries(current.statuses)) {
     if (previous.statuses[id] === status) continue;
-    if (status === "passed") toasts.push(`✓ ${displayName(id)}`);
-    else if (status === "failed") toasts.push(`✗ ${displayName(id)} — retry`);
+    if (status === "passed") toasts.push(`✓ ${current.names[id]}`);
+    else if (status === "failed") toasts.push(`✗ ${current.names[id]} — retry`);
   }
   return toasts;
 }
@@ -127,10 +130,10 @@ export function nodeDetail(ledger, id) {
   const edges = Array.isArray(shown?.edges) ? shown.edges : [];
   const taught = ledger?.nodes?.[id]?.lastTaughtAt;
   return {
-    name: displayName(id),
+    name: labelOf(shown, id),
     status: plan(ledger) ? stateOf(ledger, id) : "proposed",
-    prerequisites: prerequisitesOf(shown, id).map(displayName),
-    dependents: edges.filter((e) => Array.isArray(e) && e[0] === id).map((e) => displayName(e[1])),
+    prerequisites: prerequisitesOf(shown, id).map((p) => labelOf(shown, p)),
+    dependents: edges.filter((e) => Array.isArray(e) && e[0] === id).map((e) => labelOf(shown, e[1])),
     taught: typeof taught === "string" ? taught.slice(0, 10) : null,
   };
 }

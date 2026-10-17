@@ -169,7 +169,7 @@ test("checkDeny allows a valid tag of every recorded kind, active or not", () =>
     [{ app: "sensei-teach", v: 1, kind: "probe", topic: "dns", correct: "A" }, ["A", "B"]],
     [{ app: "sensei-teach", v: 1, kind: "goal", topic: "dns", goal: "g" }, ["A", "B"]],
     [NODE_TAG, ["A", "B", "I don't know"]],
-    [{ app: "sensei-teach", v: 1, kind: "plan", topic: "dns", approve: "Looks good", plan: { nodes: ["a", "b"], edges: [["a", "b"]] } }, ["Looks good", "I have changes"]],
+    [{ app: "sensei-teach", v: 1, kind: "plan", topic: "dns", approve: "Looks good", plan: { nodes: ["a", "b"], edges: [["a", "b"]], labels: { a: "The first idea", b: "The second idea" } } }, ["Looks good", "I have changes"]],
     [{ app: "sensei-teach", v: 1, kind: "other" }, ["A", "B"]],
   ];
   for (const active of [false, true]) {

@@ -1,3 +1,5 @@
+import { noteName, topicFolder } from "./paths.mjs";
+
 const IDK = "I don't know";
 const SNIPPET_MAX = 80;
 
@@ -19,9 +21,15 @@ export function lastSessionId(text) {
   return all.length > 0 ? all[all.length - 1][1] : null;
 }
 
+// Sensei finds a concept note by its `node:` line and its topic folder by the topic slug;
+// nothing reads the `topic:` line back.
+const KEEP_NOTE = "<!-- sensei: do not change the node line above or rename this folder; sensei finds this note by them. -->";
+
+// `requires` holds the labels of the steps this one builds on.
 export function newNoteText({ topic, node, requires }) {
-  const links = requires.map((r) => `"[[sensei/${topic}/${r}|${r}]]"`).join(", ");
-  return `---\ntopic: ${topic}\nnode: ${node}\nrequires: [${links}]\n---\n#flashcards/${topic}/${node}\n`;
+  const names = requires.map(noteName).filter((name) => name !== null);
+  const links = names.map((name) => `"[[sensei/${topicFolder(topic)}/${name}|${name}]]"`).join(", ");
+  return `---\ntopic: ${topic}\nnode: ${node}\nrequires: [${links}]\n---\n${KEEP_NOTE}\n#flashcards/${topic}/${node}\n`;
 }
 
 // A multi-line card is "question" and the quiz's options as a list, a line holding "?",

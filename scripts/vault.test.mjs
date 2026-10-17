@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pluginIdFor, parseArgs } from "./vault.mjs";
 import { saveVaultPath } from "../hooks/vault/state.mjs";
+import { emptyTopicLedger, setSessionPlan, writeTopicLedger } from "./mastery.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./vault.mjs", import.meta.url));
 
@@ -14,6 +15,12 @@ function setup() {
   const config = mkdtempSync(join(tmpdir(), "vcli-config-"));
   const vault = mkdtempSync(join(tmpdir(), "vcli-vault-"));
   return { config, vault, env: { CLAUDE_CONFIG_DIR: config, CLAUDE_PLUGIN_OPTION_VAULT_PATH: vault, CLAUDE_CODE_SESSION_ID: "sess-9" } };
+}
+// The digest names its note by the step's label, which it reads from the stored plan.
+function seedPlan(env, topic = "dns") {
+  Object.assign(process.env, { CLAUDE_CONFIG_DIR: env.CLAUDE_CONFIG_DIR }); // mastery.mjs reads it from process.env
+  const plan = { nodes: ["delegation", "referrals", "n"], edges: [["delegation", "referrals"]], labels: { delegation: "Who answers for a domain", referrals: "Following a referral", n: "A note" } };
+  writeTopicLedger(topic, setSessionPlan(emptyTopicLedger(), plan));
 }
 const run = (args, env, input = "") => spawnSync("node", [SCRIPT, ...args], { input, env: { ...process.env, ...env }, encoding: "utf8" });
 
@@ -52,9 +59,10 @@ test("status finds the vault through the saved-path file when the option is not 
 
 test("digest appends to the concept note under the session from the environment", () => {
   const { env, vault } = setup();
+  seedPlan(env);
   const result = run(["digest", "--topic", "dns", "--node", "referrals", "--kind", "explained"], env, "A referral points to the next server.\n");
   assert.equal(result.status, 0, result.stderr);
-  const note = readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8");
+  const note = readFileSync(join(vault, "sensei", "dns", "Following a referral.md"), "utf8");
   assert.ok(note.includes("<!-- sensei:session sess-9 -->"));
   assert.ok(note.endsWith("\n**Explained:** A referral points to the next server.\n"));
 });
@@ -89,18 +97,21 @@ test("digest rejects a bad slug, kind, empty text or missing session", () => {
 
 test("digest slugifies the topic the way the hook and the ledger do", () => {
   const { env, vault } = setup();
+  seedPlan(env, "dns-resolution");
+  seedPlan(env, "etc");
   const result = run(["digest", "--topic", "DNS Resolution", "--node", "referrals", "--kind", "explained"], env, "x");
   assert.equal(result.status, 0, result.stderr);
-  assert.ok(existsSync(join(vault, "sensei", "dns-resolution", "referrals.md")));
+  assert.ok(existsSync(join(vault, "sensei", "dns resolution", "Following a referral.md")));
   const escape = run(["digest", "--topic", "../etc", "--node", "n", "--kind", "explained"], env, "x");
   assert.equal(escape.status, 0);
-  assert.ok(existsSync(join(vault, "sensei", "etc", "n.md")), "path characters become hyphens, nothing leaves the vault");
+  assert.ok(existsSync(join(vault, "sensei", "etc", "A note.md")), "path characters become hyphens, nothing leaves the vault");
 });
 
 test("digest cuts a very long text", () => {
   const { env, vault } = setup();
+  seedPlan(env);
   run(["digest", "--topic", "dns", "--node", "referrals", "--kind", "re-explained"], env, "x".repeat(5000));
-  const note = readFileSync(join(vault, "sensei", "dns", "referrals.md"), "utf8");
+  const note = readFileSync(join(vault, "sensei", "dns", "Following a referral.md"), "utf8");
   assert.ok(note.includes("**Re-explained:** " + "x".repeat(2000) + "\n"));
   assert.ok(!note.includes("x".repeat(2001)));
 });

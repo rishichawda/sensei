@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT = fileURLToPath(new URL("./propose-plan.mjs", import.meta.url));
-const PLAN = { nodes: ["a", "b"], edges: [["a", "b"]] };
+const PLAN = { nodes: ["a", "b"], edges: [["a", "b"]], labels: { a: "The first idea", b: "The second idea" } };
 
 function run(args, input) {
   const config = mkdtempSync(join(tmpdir(), "propose-cli-"));
@@ -29,6 +29,7 @@ test("refuses a bad plan, a missing topic or empty input, and writes nothing", (
   for (const [args, input, message] of [
     [["dns"], JSON.stringify({ nodes: ["tcp_handshake"], edges: [] }), /lowercase-hyphenated/],
     [["dns"], JSON.stringify({ nodes: ["a"], edges: [["a", "ghost"]] }), /not in plan\.nodes/],
+    [["dns"], JSON.stringify({ nodes: ["a"], edges: [] }), /plan\.labels must give every node a plain-words name/],
     [["dns"], "not json", /JSON/],
     [["dns"], "", /JSON/],
     [[], JSON.stringify(PLAN), /Usage/],
