@@ -56,7 +56,7 @@ Other ways to start:
 
 * Claude Code 2.1.281 or later. The map pane, the line above the prompt and the toasts need it.
 * Optional: [Obsidian](https://obsidian.md) and its Spaced Repetition plugin (for the vault notes and flashcards).
-* Sensei is built and tested for Claude Code. It has not been tested in Cowork. In claude.ai chat the skills load, but plugin hooks and agents are ignored, so answers are not graded or recorded and diagrams are not drawn. Use Claude Code.
+* Sensei is built and tested for Claude Code. In claude.ai chat the lesson and the check questions run, but plugin hooks, agents and the map pane do not load there, so no hook grades or records your answers, no diagram helper runs and there is no map. It has not been tested in Cowork. Use Claude Code for the full experience.
 
 ## What sensei runs, stores and sends
 
