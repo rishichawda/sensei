@@ -1,10 +1,14 @@
-# sensei
+<p align="center"><img src=".claude-plugin/icon.png" alt="Sensei icon: a path of passed steps leading to the next one" width="112"></p>
 
-Learn anything in Claude Code with a plan you approve of first and a check you pass at each step.
+<h1 align="center">sensei</h1>
 
-[![CI](https://github.com/rishichawda/sensei/actions/workflows/ci.yml/badge.svg)](https://github.com/rishichawda/sensei/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/rishichawda/sensei)](https://github.com/rishichawda/sensei/releases)
-[![License](https://img.shields.io/github/license/rishichawda/sensei)](https://github.com/rishichawda/sensei/blob/main/LICENSE)
+<p align="center">Learn anything in Claude Code with a plan you approve of first and a check you pass at each step.</p>
+
+<p align="center">
+  <a href="https://github.com/rishichawda/sensei/actions/workflows/ci.yml"><img src="https://github.com/rishichawda/sensei/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/rishichawda/sensei/releases"><img src="https://img.shields.io/github/v/release/rishichawda/sensei" alt="Release"></a>
+  <a href="https://github.com/rishichawda/sensei/blob/main/LICENSE"><img src="https://img.shields.io/github/license/rishichawda/sensei" alt="License"></a>
+</p>
 
 <!-- Demo GIF goes here. -->
 
