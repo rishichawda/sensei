@@ -4,6 +4,11 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Changed
+
+- The README and the privacy statement now say when sensei looks facts up on the web, that the model writes the search text from your topic and what you want from it, and that sensei adds none of your files, notes, progress or answers to a search. ([dca1861](https://github.com/rishichawda/sensei/commit/dca1861381ab740f70db23e465d0046330891b12))
+- The plugin description now says that sensei looks facts up on the web before it teaches. ([135dc6c](https://github.com/rishichawda/sensei/commit/135dc6cbdcb40027add0435c3c42282abb4d3e2f))
+
 ## [1.0.4] - 2026-10-17
 
 ### Added
