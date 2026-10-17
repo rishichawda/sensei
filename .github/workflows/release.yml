@@ -80,21 +80,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OID: ${{ steps.commit.outputs.oid }}
         run: gh api "repos/$GITHUB_REPOSITORY/commits/$OID" --jq '.commit.verification | "verified=\(.verified) reason=\(.reason)"'
-      # Trusted publishing needs npm 11.5.1 or later. npm 12 neither packs nor installs from
-      # npm-shrinkwrap.json, so the publish stays on npm 11 to ship the lockfile that Claude
-      # Code's dependency install reads from an npm-sourced plugin.
+      # The package is staged, not published: it waits on npm until a maintainer approves it with
+      # 2FA (`npm stage approve <id>`, or the Staged Packages tab on npmjs.com). Staging needs npm
+      # 11.15.0 or later. npm 12 neither packs nor installs from npm-shrinkwrap.json, so this stays
+      # on npm 11 and ships the lockfile as a shrinkwrap, which is what Claude Code's dependency
+      # install reads from an npm-sourced plugin.
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - name: Publish the package to npm
+      - name: Stage the package on npm
         run: |
-          package=$(jq -r .name package.json)
-          if ! npm view "$package" name > /dev/null 2>&1; then
-            echo "::notice::$package is not on npm yet. The first publish is manual; later releases publish from here."
-            exit 0
-          fi
           npm install --global npm@11
           cp package-lock.json npm-shrinkwrap.json
-          npm publish --provenance --access public
+          npm stage publish --provenance
