@@ -114,15 +114,22 @@ export function snapshot(topic, ledger) {
   return { topic, statuses, names, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
 }
 
+// One line for every new result since the last poll, or null. The toast display
+// shows one toast at a time, so a batched check (a pass and a miss together) is one line.
 export function changedStatuses(previous, current) {
-  const toasts = [];
-  if (!previous || !current || previous.topic !== current.topic) return toasts;
+  if (!previous || !current || previous.topic !== current.topic) return null;
+  const passed = [];
+  const failed = [];
   for (const [id, status] of Object.entries(current.statuses)) {
     if (previous.statuses[id] === status) continue;
-    if (status === "passed") toasts.push(`✓ ${current.names[id]}`);
-    else if (status === "failed") toasts.push(`✗ ${current.names[id]} — retry`);
+    if (status === "passed") passed.push(current.names[id]);
+    else if (status === "failed") failed.push(current.names[id]);
   }
-  return toasts;
+  if (passed.length + failed.length === 1) return passed.length === 1 ? `✓ ${passed[0]}` : `✗ ${failed[0]} — retry`;
+  const parts = [];
+  if (passed.length > 0) parts.push(`✓ ${passed.length} passed`);
+  if (failed.length > 0) parts.push(`✗ ${failed.length} to retry`);
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export function nodeDetail(ledger, id) {

@@ -80,15 +80,28 @@ test("chipLabel shows the glyph and the label only", () => {
   assert.equal(chipLabel(PROPOSED, "b"), "○ The second idea", "a proposed plan draws its labels too");
 });
 
-test("snapshot and changedStatuses give a toast for a newly passed or failed node only", () => {
+test("snapshot and changedStatuses give one line for a newly passed or failed node only", () => {
   const before = snapshot("dns", LEDGER);
-  const after = snapshot("dns", { ...LEDGER, nodes: { ...LEDGER.nodes, delegation: { status: "passed" }, referrals: { status: "failed" } } });
-  assert.deepEqual(changedStatuses(before, after), ["✓ Who answers for a domain", "✗ Following a referral — retry"]);
-  assert.deepEqual(changedStatuses(before, before), []);
-  assert.deepEqual(changedStatuses(null, after), []);
-  assert.deepEqual(changedStatuses(before, null), []);
-  assert.deepEqual(changedStatuses(snapshot("other", LEDGER), after), [], "a different topic never toasts");
+  const withNodes = (nodes) => snapshot("dns", { ...LEDGER, nodes: { ...LEDGER.nodes, ...nodes } });
+  assert.equal(changedStatuses(before, withNodes({ delegation: { status: "passed" } })), "✓ Who answers for a domain");
+  assert.equal(changedStatuses(before, withNodes({ referrals: { status: "failed" } })), "✗ Following a referral — retry");
+  assert.equal(changedStatuses(before, before), null);
+  assert.equal(changedStatuses(null, before), null);
+  assert.equal(changedStatuses(before, null), null);
+  assert.equal(changedStatuses(snapshot("other", LEDGER), before), null, "a different topic never toasts");
   assert.equal(snapshot("dns", null), null);
+});
+
+
+test("changedStatuses folds a batch into one line of counts", () => {
+  const before = snapshot("dns", { ...LEDGER, nodes: {} });
+  const withNodes = (nodes) => snapshot("dns", { ...LEDGER, nodes });
+  const two = { "ip-routing": { status: "passed" }, delegation: { status: "failed" } };
+  assert.equal(changedStatuses(before, withNodes(two)), "✓ 1 passed · ✗ 1 to retry");
+  assert.equal(changedStatuses(before, withNodes({ "ip-routing": { status: "passed" }, delegation: { status: "passed" } })), "✓ 2 passed");
+  assert.equal(changedStatuses(before, withNodes({ "ip-routing": { status: "failed" }, delegation: { status: "failed" } })), "✗ 2 to retry");
+  const seen = snapshot("dns", { ...LEDGER, nodes: { "ip-routing": { status: "seen" } } });
+  assert.equal(changedStatuses(seen, withNodes({ "ip-routing": { status: "seen" } })), null, "a status that is neither passed nor failed says nothing");
 });
 
 test("nodeDetail lists neighbours and the date taught", () => {

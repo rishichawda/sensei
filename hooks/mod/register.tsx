@@ -54,7 +54,8 @@ export const register: Register = on => {
       if (raw === drawn) return
       drawn = raw
       const current = loaded ? snapshot(loaded.topic, loaded.ledger) : null
-      for (const text of changedStatuses(previous, current)) $.ui.toast(text)
+      const toast = changedStatuses(previous, current)
+      if (toast) $.ui.toast(toast)
       previous = current
       planning = bandLine(loaded?.ledger)?.animated === true
       await update($, view, v => ({

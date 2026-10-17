@@ -196,6 +196,20 @@ describe('toasts', () => {
   })
 
 
+  test('toasts a batched check once, as one line with both results', async ($, on) => {
+    const toasts: string[] = []
+    const files = { ...LESSON }
+    const clock = world(on, files, toasts)
+    await $.session.start({ ...START, surface: 'terminal' })
+
+    const next = structuredClone(LEDGER)
+    next.nodes['ip-routing'].status = 'failed'
+    next.nodes.delegation.status = 'passed'
+    files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
+    await clock.advance(1000)
+    expect(toasts).toEqual(['✓ 1 passed · ✗ 1 to retry'])
+  })
+
 
 })
 
