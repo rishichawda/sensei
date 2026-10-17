@@ -574,6 +574,28 @@ test("main() records every node of a multi-question call from its own answer", (
   assert.equal(nodes.n3.status, "failed");
 });
 
+test("main() fails a node that has a miss anywhere in the same call, whatever the order", () => {
+  for (const [name, answers] of [["miss then pass", ["B", "A"]], ["pass then miss", ["A", "B"]]]) {
+    const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+    runRecord(env, batchPayload("node", [nodeItem("n1", "A"), nodeItem("n1", "A"), nodeItem("n2", "A")], [...answers, "A"]));
+    const nodes = readLedger(env).nodes;
+    assert.equal(nodes.n1.status, "failed", name);
+    assert.equal(nodes.n2.status, "passed", `${name}: another node is unaffected`);
+  }
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  runRecord(env, batchPayload("node", [nodeItem("n1", "A"), nodeItem("n1", "A")], ["A", "A"]));
+  assert.equal(readLedger(env).nodes.n1.status, "passed", "all right is passed");
+});
+
+
+test("a later call still overwrites: a re-check that passes clears an earlier miss", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  runRecord(env, batchPayload("node", [nodeItem("n1", "A")], ["B"]));
+  assert.equal(readLedger(env).nodes.n1.status, "failed");
+  runRecord(env, batchPayload("node", [nodeItem("n1", "A")], ["A"]));
+  assert.equal(readLedger(env).nodes.n1.status, "passed");
+});
+
 test("main() records every probe of a multi-question call, each with its own strand", () => {
   const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
   runRecord(env, batchPayload("probe", [{ correct: "A", strand: "Heat" }, { correct: "B", strand: "peeling" }], ["A", "A"]));

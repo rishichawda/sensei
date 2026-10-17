@@ -108,6 +108,17 @@ export function expandEvents(event, questions) {
   return items.map((item, i) => ({ event: { ...shared, ...item }, question: questions[i] })).filter((pair) => pair.question && pair.event);
 }
 
+// The questions of one call are independent and unordered, so a node with a miss in the call
+// is failed whatever the order: drop that node's passes before the call is recorded in order.
+export function dropShadowedPasses(pairs, answers) {
+  const gradeOf = ({ event, question }) =>
+    event.kind === "node" && event.recordAs === "graded"
+      ? gradeAnswer(event, answers?.[question.question], Array.isArray(question.options) ? question.options.map((o) => o?.label) : [])
+      : null;
+  const missed = new Set(pairs.filter((pair) => gradeOf(pair) === "failed").map((pair) => pair.event.node));
+  return pairs.filter((pair) => !(gradeOf(pair) === "passed" && missed.has(pair.event.node)));
+}
+
 // Hidden from the learner, read by the model. The model tends to keep an explanation or a
 // verdict in its reasoning, which the learner sees only as a one-line summary; this asks for
 // chat text instead.
@@ -192,7 +203,7 @@ async function main() {
   const topicSlug = slugify(event.topic);
   const topicLedger = readTopicLedger(topicSlug);
   let ledger = topicLedger;
-  for (const { event: ev, question: q } of pairs) {
+  for (const { event: ev, question: q } of dropShadowedPasses(pairs, answers)) {
     const labels = Array.isArray(q.options) ? q.options.map((o) => o?.label) : [];
     const { ledger: updated, diagnostic } = applyTeachEvent(ledger, ev, answers?.[q.question], labels, new Date(), q.question);
     if (diagnostic) {
