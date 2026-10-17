@@ -4,6 +4,8 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-10-17
+
 ### Added
 
 - The plugin has an icon for its directory listing, and the README shows it in a centered header with the title, tagline and badges. ([ac0eb23](https://github.com/rishichawda/sensei/commit/ac0eb23ef493667e16aa400dcf759b818334cefb), [3e3026f](https://github.com/rishichawda/sensei/commit/3e3026fae7db25e9f83f80c16dff41bd1442fc72))
