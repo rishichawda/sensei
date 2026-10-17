@@ -67,9 +67,13 @@ export function attemptLine({ result, picked, question, answer, withCard }) {
   return `> ✗ Picked "${squash(picked)}"${where}. ${tail}`;
 }
 
-export function checkText({ existing, question, answer, picked, result, options = [] }) {
+// `quiz` is set when the card asks something other than the quiz did (a free-recall card): the
+// pick answers the quiz question, so the attempt line names that question and its answer.
+export function checkText({ existing, question, answer, picked, result, options = [], quiz = null }) {
   const withCard = !hasCard(existing, question);
-  const line = attemptLine({ result, picked, question, answer, withCard });
+  const line = quiz
+    ? attemptLine({ result, picked, question: quiz.question, answer: quiz.correct, withCard: false })
+    : attemptLine({ result, picked, question, answer, withCard });
   return withCard ? `\n${cardBlock(question, answer, options)}\n${line}\n` : `\n${line}\n`;
 }
 

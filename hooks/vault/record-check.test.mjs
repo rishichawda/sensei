@@ -175,8 +175,8 @@ test("a card on the tag item replaces the question and options, and a re-ask reu
   assert.ok(note.includes("What does a referral hand back?\n?\nThe address of the next server to ask\n"));
   assert.equal(note.split("\n?\n").length, 2, "one card");
   assert.ok(!note.includes("- Return the final answer"));
-  assert.ok(note.includes('> ✗ Picked "Return the final answer". Correct answer above.'));
-  assert.ok(note.includes('> ✓ Answered correctly on "What does a referral hand back?".'));
+  assert.ok(note.includes('> ✗ Picked "Return the final answer" on "What does a referral do?". Correct answer: Ask the next server'), "the pick answers the quiz question, so the line names it");
+  assert.ok(note.includes('> ✓ Answered correctly on "What does a referral do?".'));
 });
 
 test("a corrupt ledger is left where it is: the vault hook reads it without renaming it", () => {

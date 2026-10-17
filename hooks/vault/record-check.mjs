@@ -51,7 +51,7 @@ export function handlePayload(payload, env = process.env, now = new Date()) {
     }
     // The model may write a free-recall card for a vault note; without one the card is the quiz as asked.
     const card = ev.card
-      ? { question: ev.card.q, answer: ev.card.a, options: [] }
+      ? { question: ev.card.q, answer: ev.card.a, options: [], quiz: { question: question.question, correct: ev.correct } }
       : { question: question.question, answer: ev.correct, options: labels.filter((l) => typeof l === "string") };
     recordCheck({ env, topic, node: ev.node, label: labelOf(plan, ev.node), sessionId, now, requires: prerequisitesOf(plan, ev.node).map((p) => labelOf(plan, p)), picked, result, ...card });
   }

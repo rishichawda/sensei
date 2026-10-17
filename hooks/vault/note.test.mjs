@@ -103,3 +103,11 @@ test("digestText labels explained and re-explained digests", () => {
   assert.equal(digestText("explained", "  The resolver walks the tree.  "), "\n**Explained:** The resolver walks the tree.\n");
   assert.equal(digestText("re-explained", "It does not stop at root."), "\n**Re-explained:** It does not stop at root.\n");
 });
+
+test("checkText names the quiz question when the card asks something else", () => {
+  const quiz = { question: "Which has the deeper depth of field?", correct: "Photo A" };
+  const text = checkText({ existing: "", question: "What is depth of field?", answer: "The range that looks sharp", picked: "Photo B", result: "failed", quiz });
+  assert.equal(text, '\nWhat is depth of field?\n?\nThe range that looks sharp\n\n> ✗ Picked "Photo B" on "Which has the deeper depth of field?". Correct answer: Photo A\n');
+  const again = checkText({ existing: text, question: "What is depth of field?", answer: "x", picked: "Photo A", result: "passed", quiz });
+  assert.equal(again, '\n> ✓ Answered correctly on "Which has the deeper depth of field?".\n');
+});
