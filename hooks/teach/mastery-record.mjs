@@ -182,7 +182,7 @@ async function main() {
     tagged: Boolean(event),
     topic: event?.topic,
     node: event?.node,
-    sourceRaw: truncate(sourceRaw),
+    sourceRaw: event ? truncate(sourceRaw) : undefined,
   });
   if (!event) return;
   const answers = payload.tool_response?.answers;

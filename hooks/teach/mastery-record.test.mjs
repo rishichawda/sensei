@@ -321,7 +321,7 @@ test("main() logs an untagged call as tagged:false and never writes the question
   assert.equal(readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").includes("What does $? mean?"), false);
 });
 
-test("main() logs the raw (truncated) metadata.source when present but not teach-tagged, so a near-miss is visible", () => {
+test("main() does not log the metadata.source of a call that is not a sensei tag", () => {
   const configDir = freshConfigDir();
   const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
   execFileSync(process.execPath, [SCRIPT], {
@@ -333,10 +333,29 @@ test("main() logs the raw (truncated) metadata.source when present but not teach
     }),
     env,
   });
-  const lines = readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").trim().split("\n");
-  const entry = JSON.parse(lines[lines.length - 1]);
+  const log = readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8");
+  const entry = JSON.parse(log.trim().split("\n").pop());
   assert.equal(entry.tagged, false);
-  assert.equal(entry.sourceRaw, "remember");
+  assert.equal("sourceRaw" in entry, false);
+  assert.equal(log.includes("remember"), false);
+});
+
+test("main() logs the raw (truncated) metadata.source of a sensei tag", () => {
+  const configDir = freshConfigDir();
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir };
+  const source = JSON.stringify({ app: "sensei-teach", v: 1, kind: "other" });
+  execFileSync(process.execPath, [SCRIPT], {
+    input: JSON.stringify({
+      hook_event_name: "PostToolUse",
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: [{ question: "Pick one", options: [{ label: "A" }] }], metadata: { source } },
+      tool_response: { answers: { "Pick one": "A" } },
+    }),
+    env,
+  });
+  const entry = JSON.parse(readFileSyncNode(join(configDir, "sensei", "mastery-hook-debug.log"), "utf8").trim().split("\n").pop());
+  assert.equal(entry.tagged, true);
+  assert.equal(entry.sourceRaw, source);
 });
 
 test("main() logs tagged:true and writes no ledger file for a 'kind: other' event with no topic", () => {
