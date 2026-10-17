@@ -4,6 +4,11 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Changed
+
+- The debug log that records graded checks no longer holds the text of your questions, and it records a question's source tag only when the tag is sensei's own, so it keeps nothing from other plugins' questions. ([12cd2f9](https://github.com/rishichawda/sensei/commit/12cd2f92fe140cca836cf9a3eba06aa60e269d03), [483f7e4](https://github.com/rishichawda/sensei/commit/483f7e444b36f8430162b37a610903c5c4b0ef03))
+- The README now lists what sensei runs, the files it writes, what it sends, and gives example prompts, and it says sensei is built and tested for Claude Code. ([6a188d5](https://github.com/rishichawda/sensei/commit/6a188d5fd2660a2692faa4920b9ea97356cb6c53))
+
 ## [1.0.2] - 2026-10-17
 
 ### Fixed
