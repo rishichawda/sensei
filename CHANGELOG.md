@@ -4,6 +4,8 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-17
+
 ### Added
 
 - The plugin is also packaged for npm as `@rishichawda/sensei`, for marketplaces that list plugins from npm, and each release now publishes it there. The version in `package.json` and the lockfile now follows the plugin's at every release. ([1fd2082](https://github.com/rishichawda/sensei/commit/1fd2082c0a0c9214d5487a25d629a59868f18c8c))
