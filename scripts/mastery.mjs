@@ -169,6 +169,19 @@ export function recordNode(topicLedger, nodeId, status, now = new Date()) {
   return { ...topicLedger, nodes };
 }
 
+// Question counts of the last graded call, kept beside the node's one status. counts maps
+// nodeId to {right, wrong}; a node that was not recorded gets nothing.
+export function recordRound(topicLedger, counts) {
+  const nodes = { ...topicLedger.nodes };
+  let changed = false;
+  for (const [id, round] of Object.entries(counts)) {
+    if (!nodes[id]) continue;
+    nodes[id] = { ...nodes[id], lastRound: round };
+    changed = true;
+  }
+  return changed ? { ...topicLedger, nodes } : topicLedger;
+}
+
 // The log keeps the 20 newest probes. An evicted probe's passed/failed result is folded into
 // session.foldedStrands so a strand that was bracketed stays bracketed.
 export function addProbe(topicLedger, entry, now = new Date()) {

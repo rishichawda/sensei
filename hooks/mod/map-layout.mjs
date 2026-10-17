@@ -107,32 +107,45 @@ export function snapshot(topic, ledger) {
   if (!ledger) return null;
   const statuses = {};
   const taught = {};
+  const rounds = {};
   const names = {};
   for (const [id, node] of Object.entries(ledger.nodes ?? {})) {
     statuses[id] = node?.status ?? "";
     taught[id] = node?.lastTaughtAt ?? "";
+    rounds[id] = roundOf(node);
     names[id] = labelOf(drawnPlan(ledger), id);
   }
-  return { topic, statuses, taught, names, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
+  return { topic, statuses, taught, rounds, names, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
+}
+
+// The questions a step's last call held; a step recorded before the counts existed is one.
+function roundOf(node) {
+  const { right, wrong } = node?.lastRound ?? {};
+  if (Number.isInteger(right) && Number.isInteger(wrong) && right + wrong > 0) return { right, wrong };
+  return node?.status === "passed" ? { right: 1, wrong: 0 } : { right: 0, wrong: 1 };
 }
 
 // One line for every result recorded since the last poll (a new status, or the same status
-// stamped again by a later check), or null. The toast display
+// stamped again by a later check), or null. Counts questions, not steps. The toast display
 // shows one toast at a time, so a batched check (a pass and a miss together) is one line.
 export function changedStatuses(previous, current) {
   if (!previous || !current || previous.topic !== current.topic) return null;
-  const passed = [];
-  const failed = [];
+  let right = 0;
+  let wrong = 0;
+  let step = null;
   for (const [id, status] of Object.entries(current.statuses)) {
     if (previous.statuses[id] === status && previous.taught[id] === current.taught[id]) continue;
-    if (status === "passed") passed.push(current.names[id]);
-    else if (status === "failed") failed.push(current.names[id]);
+    if (status !== "passed" && status !== "failed") continue;
+    right += current.rounds[id].right;
+    wrong += current.rounds[id].wrong;
+    step = current.names[id];
   }
-  if (passed.length + failed.length === 1) return passed.length === 1 ? `✓ ${passed[0]}` : `✗ ${failed[0]} — retry`;
+  if (right + wrong === 0) return null;
+  if (right + wrong === 1) return right === 1 ? `✓ ${step}` : `✗ ${step} — retry`;
   const parts = [];
-  if (passed.length > 0) parts.push(`✓ ${passed.length} passed`);
-  if (failed.length > 0) parts.push(`✗ ${failed.length} to retry`);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  if (right > 0) parts.push(`✓ ${right} correct`);
+  if (wrong > 0) parts.push(`✗ ${wrong} to retry`);
+  return parts.join(" · ");
 }
 
 export function nodeDetail(ledger, id) {

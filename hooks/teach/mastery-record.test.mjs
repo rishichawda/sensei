@@ -587,6 +587,24 @@ test("main() fails a node that has a miss anywhere in the same call, whatever th
   assert.equal(readLedger(env).nodes.n1.status, "passed", "all right is passed");
 });
 
+test("main() keeps the question counts of the last call on each graded node", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  runRecord(env, batchPayload("node", [nodeItem("n1", "A"), nodeItem("n1", "A"), nodeItem("n1", "A"), nodeItem("n2", "A"), nodeItem("n2", "A"), nodeItem("n3", "ZZ")], ["A", "B", "I don't know", "A", "A", "A"]));
+  const nodes = readLedger(env).nodes;
+  assert.deepEqual(nodes.n1.lastRound, { right: 1, wrong: 2 }, "a dropped pass still counts as right");
+  assert.equal(nodes.n1.status, "failed");
+  assert.deepEqual(nodes.n2.lastRound, { right: 2, wrong: 0 });
+  assert.equal(nodes.n3, undefined, "an unrecordable item adds no node");
+  runRecord(env, batchPayload("node", [nodeItem("n1", "A")], ["A"]));
+  assert.deepEqual(readLedger(env).nodes.n1.lastRound, { right: 1, wrong: 0 }, "the next call replaces the counts");
+  assert.deepEqual(readLedger(env).nodes.n2.lastRound, { right: 2, wrong: 0 }, "a node outside the call keeps its counts");
+});
+
+test("main() gives a seen node no question counts", () => {
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };
+  runRecord(env, batchPayload("node", [{ node: "n1", recordAs: "seen" }], ["A"]));
+  assert.equal(readLedger(env).nodes.n1.lastRound, undefined);
+});
 
 test("a later call still overwrites: a re-check that passes clears an earlier miss", () => {
   const env = { ...process.env, CLAUDE_CONFIG_DIR: freshConfigDir() };

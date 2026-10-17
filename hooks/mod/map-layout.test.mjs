@@ -103,13 +103,26 @@ test("changedStatuses reports a repeated result: a second miss on a step that al
   assert.equal(changedStatuses(passed, snapshot("dns", at("2026-10-10T05:09:00.000Z", "passed"))), "✓ Who answers for a domain", "a re-check that passes again");
 });
 
+test("changedStatuses counts the questions of the last round, not the steps", () => {
+  const before = snapshot("dns", { ...LEDGER, nodes: {} });
+  const withNodes = (nodes) => snapshot("dns", { ...LEDGER, nodes });
+  const round = (status, right, wrong) => ({ status, lastRound: { right, wrong } });
+  assert.equal(changedStatuses(before, withNodes({ delegation: round("failed", 1, 2) })), "✓ 1 correct · ✗ 2 to retry");
+  assert.equal(changedStatuses(before, withNodes({ delegation: round("failed", 0, 1) })), "✗ Who answers for a domain — retry", "one question uses the step label");
+  assert.equal(changedStatuses(before, withNodes({ delegation: round("passed", 1, 0) })), "✓ Who answers for a domain");
+  assert.equal(changedStatuses(before, withNodes({ delegation: round("passed", 2, 0) })), "✓ 2 correct");
+  assert.equal(changedStatuses(before, withNodes({ delegation: round("failed", 0, 3) })), "✗ 3 to retry");
+  assert.equal(changedStatuses(before, withNodes({ delegation: round("failed", 1, 2), "ip-routing": round("passed", 1, 0) })), "✓ 2 correct · ✗ 2 to retry", "counts add across steps");
+  assert.equal(changedStatuses(before, withNodes({ delegation: { status: "failed" }, "ip-routing": round("passed", 2, 0) })), "✓ 2 correct · ✗ 1 to retry", "a step with no counts is one question");
+  assert.doesNotThrow(() => snapshot("dns", { ...LEDGER, nodes: { delegation: { status: "failed", lastRound: "x" } } }));
+});
 
 test("changedStatuses folds a batch into one line of counts", () => {
   const before = snapshot("dns", { ...LEDGER, nodes: {} });
   const withNodes = (nodes) => snapshot("dns", { ...LEDGER, nodes });
   const two = { "ip-routing": { status: "passed" }, delegation: { status: "failed" } };
-  assert.equal(changedStatuses(before, withNodes(two)), "✓ 1 passed · ✗ 1 to retry");
-  assert.equal(changedStatuses(before, withNodes({ "ip-routing": { status: "passed" }, delegation: { status: "passed" } })), "✓ 2 passed");
+  assert.equal(changedStatuses(before, withNodes(two)), "✓ 1 correct · ✗ 1 to retry");
+  assert.equal(changedStatuses(before, withNodes({ "ip-routing": { status: "passed" }, delegation: { status: "passed" } })), "✓ 2 correct");
   assert.equal(changedStatuses(before, withNodes({ "ip-routing": { status: "failed" }, delegation: { status: "failed" } })), "✗ 2 to retry");
   const seen = snapshot("dns", { ...LEDGER, nodes: { "ip-routing": { status: "seen" } } });
   assert.equal(changedStatuses(seen, withNodes({ "ip-routing": { status: "seen" } })), null, "a status that is neither passed nor failed says nothing");

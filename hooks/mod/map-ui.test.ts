@@ -219,10 +219,21 @@ describe('toasts', () => {
     next.nodes.delegation.status = 'passed'
     files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
     await clock.advance(1000)
-    expect(toasts).toEqual(['✓ 1 passed · ✗ 1 to retry'])
+    expect(toasts).toEqual(['✓ 1 correct · ✗ 1 to retry'])
   })
 
+  test('toasts the questions of a mixed round on one step', async ($, on) => {
+    const toasts: string[] = []
+    const files = { ...LESSON }
+    const clock = world(on, files, toasts)
+    await $.session.start({ ...START, surface: 'terminal' })
 
+    const next = structuredClone(LEDGER)
+    next.nodes.delegation = { status: 'failed', lastTaughtAt: '2026-10-10T07:00:00.000Z', lastRound: { right: 1, wrong: 2 } }
+    files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
+    await clock.advance(1000)
+    expect(toasts).toEqual(['✓ 1 correct · ✗ 2 to retry'])
+  })
 })
 
 describe('refresh', () => {

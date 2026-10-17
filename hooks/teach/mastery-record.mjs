@@ -1,4 +1,4 @@
-import { readTopicLedger, writeTopicLedger, recordNode, touchSession, setSessionGoal, setSessionPlan, advanceSession, addProbe, slugify, normalizeStrand } from "../../scripts/mastery.mjs";
+import { readTopicLedger, writeTopicLedger, recordNode, recordRound, touchSession, setSessionGoal, setSessionPlan, advanceSession, addProbe, slugify, normalizeStrand } from "../../scripts/mastery.mjs";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { clearActive } from "./session-state.mjs";
@@ -119,6 +119,20 @@ export function dropShadowedPasses(pairs, answers) {
   return pairs.filter((pair) => !(gradeOf(pair) === "passed" && missed.has(pair.event.node)));
 }
 
+// Right and wrong questions per node in one call, dropped passes included.
+export function roundCounts(pairs, answers) {
+  const counts = {};
+  for (const { event, question } of pairs) {
+    if (event.kind !== "node" || event.recordAs !== "graded") continue;
+    const labels = Array.isArray(question.options) ? question.options.map((o) => o?.label) : [];
+    const grade = gradeAnswer(event, answers?.[question.question], labels);
+    if (grade === "invalid") continue;
+    const count = (counts[event.node] ??= { right: 0, wrong: 0 });
+    count[grade === "passed" ? "right" : "wrong"] += 1;
+  }
+  return counts;
+}
+
 // Hidden from the learner, read by the model. The model tends to keep an explanation or a
 // verdict in its reasoning, which the learner sees only as a one-line summary; this asks for
 // chat text instead.
@@ -211,6 +225,7 @@ async function main() {
     }
     ledger = updated;
   }
+  ledger = recordRound(ledger, roundCounts(pairs, answers));
   if (ledger !== topicLedger) writeTopicLedger(topicSlug, ledger);
 }
 

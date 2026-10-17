@@ -8,6 +8,7 @@ import {
   slugify,
   getTopic,
   recordNode,
+  recordRound,
   listTopics,
   emptyTopicLedger,
   readTopicLedger,
@@ -1008,4 +1009,13 @@ test("setSessionPlan drops the proposed plan it approves, and a new goal drops i
   assert.equal("proposedPlan" in setSessionPlan(proposed, plan).session, false);
   const planned = setSessionPlan(emptyTopicLedger(), plan);
   assert.equal("proposedPlan" in setSessionGoal(setProposedPlan(planned, plan), "new").session, false);
+});
+
+test("recordRound sets lastRound on recorded nodes only and does not mutate the input", () => {
+  const before = recordNode(emptyTopicLedger(), "packets", "failed");
+  const after = recordRound(before, { packets: { right: 1, wrong: 2 }, ghost: { right: 1, wrong: 0 } });
+  assert.deepEqual(after.nodes.packets, { ...before.nodes.packets, lastRound: { right: 1, wrong: 2 } });
+  assert.equal(after.nodes.ghost, undefined);
+  assert.equal(before.nodes.packets.lastRound, undefined);
+  assert.equal(recordRound(before, {}), before, "no counts returns the same reference");
 });
