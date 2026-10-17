@@ -7,6 +7,7 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 ### Fixed
 
 - A copy of sensei installed from GitHub now gets its npm packages, so a Mermaid diagram can be drawn as a picture there (on macOS with Chrome or Chromium installed); before, Claude Code skipped the package install and the picture could not be made. ([a4da1b8](https://github.com/rishichawda/sensei/commit/a4da1b8439d65c418877722d073b06054a6580b7))
+- SVG pictures are now drawn by a renderer that installs with sensei, so they no longer need `rsvg-convert` or ImageMagick on your machine. ([f5828ea](https://github.com/rishichawda/sensei/commit/f5828ea8986bd012b60de06614fab9ab59a03805))
 
 ## [0.3.0] - 2026-10-17
 
