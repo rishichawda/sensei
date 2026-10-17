@@ -36,6 +36,12 @@ claude plugin install sensei@rishichawda
 
 Start a new session and ask Claude: *"Teach me how DNS resolution works"*.
 
+Other ways to start:
+
+* *"Teach me music theory. I can already read sheet music."* Sensei assesses your level first and skips what you already know.
+* *"Teach me how a hash map works and draw how a lookup travels through it."* The lesson includes a diagram.
+* *"Continue teaching me DNS resolution."* Sensei picks up the saved session for that topic.
+
 ## What you get
 
 **A map you can open.** Type `/map` to get a pane showing the approved plan with one chip per step: ○ not started, ● in progress, ✓ passed, ✗ missed. Click on a chip to see what it builds on and what it builds to. A line appears above the prompt indicating your current position in the lesson and a toast appears for each pass/miss with the number of questions answered correctly. The map is not drawn in the chat.
@@ -50,6 +56,17 @@ Start a new session and ask Claude: *"Teach me how DNS resolution works"*.
 
 * Claude Code 2.1.281 or later. The map pane, the line above the prompt and the toasts need it.
 * Optional: [Obsidian](https://obsidian.md) and its Spaced Repetition plugin (for the vault notes and flashcards).
+* Sensei is built and tested for Claude Code. It has not been tested in Cowork. In claude.ai chat the skills load, but plugin hooks and agents are ignored, so answers are not graded or recorded and diagrams are not drawn. Use Claude Code.
+
+## What sensei runs, stores and sends
+
+**Hooks.** `hooks/hooks.json` runs Node scripts that ship with the plugin, at session start, on each prompt, around each `AskUserQuestion` call, and after `Bash` and `Skill` calls. During a lesson they grade your answer to each check question and record the result, add a reminder for the model when a question is missing its tag or a verdict, and mirror the lesson to your vault if you set one. On a prompt that contains "teach me", "continue teaching" or "resume teaching" they add a reminder to use the `teach` skill. The hooks read the tool call and result, not the conversation transcript; the transcript's file name is only used to place a small marker file beside it.
+
+**Files it writes.** Under your Claude config directory (`~/.claude`, or `CLAUDE_CONFIG_DIR`), in `sensei/`: one progress ledger per topic in `ledgers/`, a file per running lesson in `active/`, the vault path you set, and two debug logs (`mastery-hook-debug.log`, `vault-debug.log`) that keep the last 200 lines each. They hold topic and step names, the lesson's tag data (which can include the label of the correct option) and error messages, not the text of your questions or your answers. Beside the session transcript: two small marker files ending in `.teach-active-state.json` and `.teach-invoked-state.json`. In your vault, only if you set one: notes under `<vault>/sensei/`. In the current project: rendered diagrams as PNG files in `viz/`. While drawing a Mermaid diagram it also uses a temporary folder, which it deletes afterwards. Sensei writes nowhere else. Delete the `sensei/` folder to remove your progress.
+
+**What it runs.** The diagram helpers run Mermaid CLI and a local copy of Chrome or Chromium to draw Mermaid diagrams, and `@resvg/resvg-js` to draw SVG, on your machine. Claude Code installs these npm packages from the plugin's lockfile when you install the plugin. The map pane (`/map`) reads the ledger files to draw itself.
+
+**What it sends.** Sensei's own code makes no network requests, has no telemetry and sends nothing to the author. The one network use is the `researcher` agent, which uses Claude Code's `WebSearch` and `WebFetch` tools to ground a lesson in sources. It treats the pages it reads as data, never as instructions.
 
 ## Why I built it
 
