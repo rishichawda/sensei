@@ -92,6 +92,17 @@ test("snapshot and changedStatuses give one line for a newly passed or failed no
   assert.equal(snapshot("dns", null), null);
 });
 
+test("changedStatuses reports a repeated result: a second miss on a step that already failed", () => {
+  const at = (iso, status) => ({ ...LEDGER, nodes: { delegation: { status, lastTaughtAt: iso } } });
+  const first = snapshot("dns", at("2026-10-10T05:00:00.000Z", "failed"));
+  const again = snapshot("dns", at("2026-10-10T05:09:00.000Z", "failed"));
+  assert.equal(changedStatuses(first, again), "✗ Who answers for a domain — retry");
+  assert.equal(changedStatuses(first, snapshot("dns", at("2026-10-10T05:00:00.000Z", "failed"))), null, "the same result is not reported twice");
+  assert.equal(changedStatuses(first, snapshot("dns", at("2026-10-10T05:09:00.000Z", "passed"))), "✓ Who answers for a domain");
+  const passed = snapshot("dns", at("2026-10-10T05:00:00.000Z", "passed"));
+  assert.equal(changedStatuses(passed, snapshot("dns", at("2026-10-10T05:09:00.000Z", "passed"))), "✓ Who answers for a domain", "a re-check that passes again");
+});
+
 
 test("changedStatuses folds a batch into one line of counts", () => {
   const before = snapshot("dns", { ...LEDGER, nodes: {} });

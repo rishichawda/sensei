@@ -195,6 +195,18 @@ describe('toasts', () => {
     expect(toasts).toEqual(['✓ Who answers for a domain'])
   })
 
+  test('toasts a second miss on a step that had already failed', async ($, on) => {
+    const toasts: string[] = []
+    const files = { ...LESSON }
+    const clock = world(on, files, toasts)
+    await $.session.start({ ...START, surface: 'terminal' })
+
+    const next = structuredClone(LEDGER)
+    next.nodes.delegation.lastTaughtAt = '2026-10-10T07:00:00.000Z'
+    files[`${CONFIG}/sensei/ledgers/dns.json`] = JSON.stringify(next)
+    await clock.advance(1000)
+    expect(toasts).toEqual(['✗ Who answers for a domain — retry'])
+  })
 
   test('toasts a batched check once, as one line with both results', async ($, on) => {
     const toasts: string[] = []

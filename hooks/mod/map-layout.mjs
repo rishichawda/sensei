@@ -106,22 +106,25 @@ export function bandLine(ledger) {
 export function snapshot(topic, ledger) {
   if (!ledger) return null;
   const statuses = {};
+  const taught = {};
   const names = {};
   for (const [id, node] of Object.entries(ledger.nodes ?? {})) {
     statuses[id] = node?.status ?? "";
+    taught[id] = node?.lastTaughtAt ?? "";
     names[id] = labelOf(drawnPlan(ledger), id);
   }
-  return { topic, statuses, names, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
+  return { topic, statuses, taught, names, next: ledger.session?.nextNodeId ?? null, sessionStatus: ledger.session?.status ?? null };
 }
 
-// One line for every new result since the last poll, or null. The toast display
+// One line for every result recorded since the last poll (a new status, or the same status
+// stamped again by a later check), or null. The toast display
 // shows one toast at a time, so a batched check (a pass and a miss together) is one line.
 export function changedStatuses(previous, current) {
   if (!previous || !current || previous.topic !== current.topic) return null;
   const passed = [];
   const failed = [];
   for (const [id, status] of Object.entries(current.statuses)) {
-    if (previous.statuses[id] === status) continue;
+    if (previous.statuses[id] === status && previous.taught[id] === current.taught[id]) continue;
     if (status === "passed") passed.push(current.names[id]);
     else if (status === "failed") failed.push(current.names[id]);
   }
