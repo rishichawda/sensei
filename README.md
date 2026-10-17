@@ -70,7 +70,7 @@ Other ways to start:
 
 **What it runs.** The diagram helpers run Mermaid CLI and a local copy of Chrome or Chromium to draw Mermaid diagrams, and `@resvg/resvg-js` to draw SVG, on your machine. Claude Code installs these npm packages from the plugin's lockfile when you install the plugin. The mod in `hooks/mod/register.tsx` registers the `/map` command, handles only that command, and draws the map pane, the line above the prompt and the toasts from the ledger files, which it reads once a second. It changes no other call.
 
-**What it sends.** Sensei's own code makes no network requests, has no telemetry and sends nothing to the author. The one network use is the `researcher` agent, which uses Claude Code's `WebSearch` and `WebFetch` tools to ground a lesson in sources. It treats the pages it reads as data, never as instructions.
+**What it sends.** Sensei's own code makes no network requests, has no telemetry and sends nothing to the author. The one network use is the `researcher` agent, which uses Claude Code's `WebSearch` and `WebFetch` tools to ground a lesson in sources. It treats the pages it reads as data, never as instructions. See [PRIVACY.md](PRIVACY.md) for the full list and how to delete your data.
 
 ## Why I built it
 
