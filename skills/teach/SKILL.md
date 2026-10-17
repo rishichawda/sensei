@@ -166,11 +166,11 @@ Ask it with `AskUserQuestion`: one single-select question with an "I'm done" opt
 - **They pick anything else, or type free text:** the lesson goes on. A new subject starts again from Section A (resolve the topic, ask the goal, then probe); a new goal on the same topic goes to Phase 1a with a new `goal` call, which starts a fresh session and keeps their per-node mastery; carrying on with the current plan continues Phase 3.
 - **A stop before the plan is finished** is fine and needs nothing from you: the session stays `in-progress`, and a later "continue" resumes at the first node not yet passed. Never mark a session complete yourself; the ledger decides that.
 
-## Choosing how to render a diagram or visual
+## Where a diagram or visual goes
 
-**The Phase 2 dependency map is not part of this choice:** it is never drawn in chat, only stored for the `/map` pane (Phase 2). Anything else this skill visualizes — mid-lesson illustrations, an ad-hoc "show me a diagram" request, anything you'd otherwise render as a diagram or SVG through `Skill(sensei:visualize)` — has two genuinely different options, not one correct default: a local render that lands in the user's own files (a file in their own working directory, stays private to their machine) versus a hosted, shareable page (lives outside their files, easy to hand to someone else).
+**The Phase 2 dependency map is not part of this:** it is never drawn in chat, only stored for the `/map` pane (Phase 2). Anything else this skill visualizes — mid-lesson illustrations, an ad-hoc "show me a diagram" request, anything you'd otherwise render as a diagram or SVG — goes through `Skill(sensei:visualize)`, which renders it locally into a `viz/` folder in the user's own working directory. That file stays on their machine.
 
-Choose per request based on what the moment actually calls for, not a fixed habit. Read the real signals available to you: does this look like a durable addition to their own files or something more disposable/shareable in the moment; is a person here to see and redirect the choice, or is this running unattended. Let those signals decide which mechanism fits — and when genuinely unclear, ask them rather than guessing.
+**Never publish a diagram, a visual or any other lesson content to a hosted or shareable page, a link, a paste or image host, or any service outside the user's machine** — not as an Artifact, not through a CLI, not when they ask for a link to send someone. If they want to share it, tell them the image is in `viz/` and they can send that file themselves.
 
 ## Formatting — math as LaTeX
 
