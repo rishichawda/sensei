@@ -4,6 +4,8 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-17
+
 ### Changed
 
 - The map, the line above the prompt, the toasts, the vault map note and the concept notes name each step in plain words, not by an internal ID, and the topic folder reads as words ("camera lens cleaning"). Each note carries a one-line comment asking you not to change the line sensei finds it by. The plan now carries a short label for every step. A map chip shows only the label; selecting it shows "Builds on" and "Leads to" instead of "Needs" and "Unlocks". ([ea8004a](https://github.com/rishichawda/sensei/commit/ea8004a2658149ccca47083b9b67ddf575b4052c))

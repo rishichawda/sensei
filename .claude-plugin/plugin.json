@@ -2,7 +2,7 @@
   "name": "sensei",
   "displayName": "Sensei",
   "description": "Learn anything in Claude Code with a plan you approve first and a check you pass at every step.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": { "name": "rishichawda", "email": "rishichawda@users.noreply.github.com" },
   "license": "MIT",
   "keywords": ["teaching", "learning", "pedagogy", "diagrams"],
