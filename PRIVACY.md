@@ -20,6 +20,7 @@ Sensei's own code makes no network requests and has no telemetry.
 
 - **Claude.** Your conversation, including the lesson, goes to Claude through Claude Code, as for any Claude Code session. Anthropic's [privacy policy](https://www.anthropic.com/legal/privacy) covers that.
 - **Web research.** Before it teaches, and whenever it is unsure of a fact, sensei starts the `researcher` agent. It uses Claude Code's `WebSearch` and `WebFetch` tools to search the web and read pages. The model writes the search text, so it can contain the topic you asked about and what you told it you want from the topic. Sensei's code does not add your files, vault notes, progress or answers to a search. The agent treats the pages it reads as data, never as instructions.
+- **Diagrams.** The Chrome that draws Mermaid diagrams on your machine is started with no network access: every request goes to a proxy that is not there, so a diagram label cannot make it fetch a URL.
 - **Installation.** Claude Code installs sensei's npm packages from the plugin's lockfile when you install the plugin.
 
 ## Deleting your data
