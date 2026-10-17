@@ -4,6 +4,10 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+
+- A copy of sensei installed from GitHub now gets its npm packages, so a Mermaid diagram can be drawn as a picture there (on macOS with Chrome or Chromium installed); before, Claude Code skipped the package install and the picture could not be made. ([a4da1b8](https://github.com/rishichawda/sensei/commit/a4da1b8439d65c418877722d073b06054a6580b7))
+
 ## [0.3.0] - 2026-10-17
 
 ### Changed
