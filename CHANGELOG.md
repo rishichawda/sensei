@@ -4,6 +4,8 @@ All notable changes to sensei are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-10-17
+
 ### Fixed
 
 - The Chrome that draws a Mermaid diagram now has no network access. A diagram's text is written by the model, and Chrome fetched any URL a label named, such as an image, which could have sent data to any host. A normal diagram renders exactly as before, and the README and the privacy statement now say so. ([fbe2fcf](https://github.com/rishichawda/sensei/commit/fbe2fcfbb75520e1f46c0fc51c4e47eb4ce04c0b), [5c0b224](https://github.com/rishichawda/sensei/commit/5c0b224f9d15093f1570a0b53d3b8f8868375721))
