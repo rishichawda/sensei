@@ -3,11 +3,13 @@ node_modules/
 # Planning artifacts — never committed (design spec, implementation plan,
 # status notes, superpowers plans). Portable so you have them in the new
 # location, not meant for git history.
-docs/dev-notes/
-docs/superpowers/
+docs/
 
-# Machine-local Claude Code settings (permissions etc.) — never shared.
-.claude/settings.local.json
+# Machine-local Claude Code state (settings, installed skills, worktrees) — never shared.
+.claude/
+
+# Written by the engine for the mod (it extends the gitignored .claude-plugin/types/tsconfig.json).
+/tsconfig.json
 
 # Runtime output from the teach skill's diagram publishing (mermaid-maker/
 # svg-maker write here at whatever cwd they're run from) — never committed.
